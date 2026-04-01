@@ -36,13 +36,12 @@ export async function fetchGraphData(pool: Pool): Promise<GraphData> {
     WHERE field_7613 IS NOT NULL AND field_7613::text != '' AND field_7613::text != '0'
   `;
 
-  // Graph edges (table 766) reference entity IDs from table 764.
-  // Projects/People have source_entity_id (field_7575/field_7583) linking back to 764.
-  // Build ID translation maps to resolve edges.
+  // Graph edges (table 766) use row IDs that match project/people IDs directly.
+  // Build a map of all known IDs to their node type.
   const entityMapQuery = `
-    SELECT id, field_7575::text as eid, 'project' as type FROM graph.projects WHERE field_7575 IS NOT NULL AND field_7575::text != ''
+    SELECT id::text as eid, 'project' as type FROM graph.projects
     UNION ALL
-    SELECT id, field_7583::text as eid, 'person' as type FROM graph.people WHERE field_7583 IS NOT NULL AND field_7583::text != ''
+    SELECT id::text as eid, 'person' as type FROM graph.people
   `;
 
   const graphEdgesQuery = `
@@ -60,10 +59,10 @@ export async function fetchGraphData(pool: Pool): Promise<GraphData> {
     pool.query(graphEdgesQuery),
   ]);
 
-  // Build entity_764_id → node_id map
+  // Build row_id → node_id map
   const eid2node = new Map<string, string>();
   for (const row of entityMapRes.rows) {
-    eid2node.set(String(row.eid), `${row.type}_${row.id}`);
+    eid2node.set(String(row.eid), `${row.type}_${row.eid}`);
   }
 
   const nodeMap = new Map<string, GraphNode>();
