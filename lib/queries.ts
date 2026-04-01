@@ -7,6 +7,37 @@ import type {
 // Tables are in graph.* schema on shared postgres (kcsi DB)
 // Column names are still field_XXXX (Baserow convention, copied via pg_dump)
 
+// Select ID → label maps for resolving Baserow integer IDs
+const ROLES: Record<string, string> = {
+  '3260': 'director', '3261': 'curator', '3262': 'artist',
+  '3263': 'participant', '3264': 'founder', '3265': 'manager', '3266': 'other',
+  '3272': 'teacher', '3273': 'actor', '3274': 'playwright',
+  '3275': 'producer', '3276': 'screenwriter', '3277': 'photographer',
+  '3278': 'musician', '3279': 'designer', '3280': 'architect',
+  '3281': 'writer', '3282': 'journalist', '3283': 'activist',
+  '3284': 'critic', '3285': 'collector', '3286': 'administrator',
+  '3287': 'cameraman', '3288': 'sound_engineer', '3289': 'choreographer',
+  '3290': 'lecturer',
+};
+const EVENT_TYPES: Record<string, string> = {
+  '3238': 'exhibition', '3239': 'festival', '3240': 'opening',
+  '3241': 'talk', '3242': 'workshop', '3243': 'performance',
+  '3244': 'fair', '3245': 'residency', '3246': 'other',
+};
+const PROJECT_TYPES: Record<string, string> = {
+  '3247': 'museum', '3248': 'gallery', '3249': 'theater',
+  '3250': 'residency', '3251': 'festival', '3252': 'collective',
+  '3253': 'foundation', '3254': 'school', '3255': 'platform', '3256': 'other',
+};
+const PROJECT_STATUSES: Record<string, string> = {
+  '3257': 'active', '3258': 'archive', '3259': 'unknown',
+};
+
+function resolve(val: unknown, map: Record<string, string>): string | null {
+  if (val == null) return null;
+  return map[String(val)] || null;
+}
+
 // ── Graph data ──────────────────────────────────────────────────────────────
 
 export async function fetchGraphData(pool: Pool): Promise<GraphData> {
@@ -37,12 +68,14 @@ export async function fetchGraphData(pool: Pool): Promise<GraphData> {
     WHERE field_7613 IS NOT NULL AND field_7613::text != '' AND field_7613::text != '0'
   `;
 
-  // Graph edges (table 766) use row IDs that match project/people IDs directly.
-  // Build a map of all known IDs to their node type.
+  // Graph edges (table 766) use UUIDs. Map UUID → node ID.
+  // UUID fields: people=field_7626, projects=field_7627, events=field_7628
   const entityMapQuery = `
-    SELECT id::text as eid, 'project' as type FROM graph.projects
+    SELECT field_7627 as uuid, 'project' as type, id FROM graph.projects WHERE field_7627 IS NOT NULL
     UNION ALL
-    SELECT id::text as eid, 'person' as type FROM graph.people
+    SELECT field_7626 as uuid, 'person' as type, id FROM graph.people WHERE field_7626 IS NOT NULL
+    UNION ALL
+    SELECT field_7628 as uuid, 'event' as type, id FROM graph.events WHERE field_7628 IS NOT NULL
   `;
 
   const graphEdgesQuery = `
@@ -60,10 +93,10 @@ export async function fetchGraphData(pool: Pool): Promise<GraphData> {
     pool.query(graphEdgesQuery),
   ]);
 
-  // Build row_id → node_id map
+  // Build UUID → node_id map
   const eid2node = new Map<string, string>();
   for (const row of entityMapRes.rows) {
-    eid2node.set(String(row.eid), `${row.type}_${row.eid}`);
+    if (row.uuid) eid2node.set(String(row.uuid), `${row.type}_${row.id}`);
   }
 
   const nodeMap = new Map<string, GraphNode>();
@@ -171,7 +204,7 @@ export async function fetchProject(pool: Pool, id: number): Promise<Project | nu
     name: r.field_7556 || 'Unknown',
     nameRu: r.field_7609 || null,
     nameOriginal: r.field_7610 || null,
-    type: r.field_7565 ? String(r.field_7565) : null,
+    type: resolve(r.field_7565, PROJECT_TYPES),
     city: r.field_7566 || null,
     address: r.field_7567 || null,
     phone: r.field_7568 || null,
@@ -180,9 +213,9 @@ export async function fetchProject(pool: Pool, id: number): Promise<Project | nu
     instagram: r.field_7571 || null,
     telegram: r.field_7572 || null,
     description: r.field_7573 || null,
-    status: r.field_7574 ? String(r.field_7574) : null,
+    status: resolve(r.field_7574, PROJECT_STATUSES),
     team: teamRes.rows.map(tr => ({
-      role: tr.role_id || tr.role_text || 'other',
+      role: resolve(tr.role_id, ROLES) || tr.role_text || 'other',
       roleText: tr.role_text || null,
       period: tr.period || null,
       personId: tr.person_id || null,
@@ -192,7 +225,7 @@ export async function fetchProject(pool: Pool, id: number): Promise<Project | nu
     events: eventsRes.rows.map(er => ({
       id: er.id,
       name: er.name || 'Unknown',
-      type: er.type ? String(er.type) : null,
+      type: resolve(er.type, EVENT_TYPES),
       dateStart: er.date_start || null,
     })),
   };
@@ -212,25 +245,35 @@ export async function fetchPerson(pool: Pool, id: number): Promise<Person | null
     WHERE r.field_7585 = $1
   `, [id]);
 
-  // Events linked to this person via graph edges (PARTICIPATES_IN, ORGANIZES)
-  const eventsRes = await pool.query(`
-    SELECT DISTINCT e.id, e.field_7542 as name, e.field_7543::text as type, e.field_7546::text as date_start
-    FROM graph.edges ed
-    JOIN graph.events e ON (
-      (ed.field_7470 = $1 AND e.id = ed.field_7468) OR
-      (ed.field_7468 = $1 AND e.id = ed.field_7470)
-    )
-    WHERE ed.field_7472::text IN ('3267', '3269')
-    ORDER BY e.field_7546 DESC NULLS LAST
-  `, [id]);
+  // Events linked to this person via graph edges (PARTICIPATES_IN=3267, ORGANIZES=3269)
+  // Edges use UUIDs; person UUID is field_7626
+  const personUuid = r.field_7626;
+  let eventsRes = { rows: [] as { id: number; name: string; type: string; date_start: string }[] };
+  if (personUuid) {
+    try {
+      eventsRes = await pool.query(`
+        SELECT DISTINCT e.id, e.field_7542 as name, e.field_7543::text as type, e.field_7546::text as date_start
+        FROM graph.edges ed
+        JOIN graph.events e ON (
+          (ed.field_7468 = $1 AND e.field_7628 = ed.field_7470) OR
+          (ed.field_7470 = $1 AND e.field_7628 = ed.field_7468)
+        )
+        WHERE ed.field_7472::text IN ('3267', '3269')
+        ORDER BY e.field_7546 DESC NULLS LAST
+      `, [personUuid]);
+    } catch { /* edges may reference missing events */ }
+  }
 
   // Artworks by this person (author_id = person id)
-  const artworksRes = await pool.query(`
-    SELECT id, field_7600 as title, field_7603 as medium, field_7604::text as first_seen
-    FROM graph.artworks
-    WHERE field_7602 = $1
-    ORDER BY field_7604 DESC NULLS LAST
-  `, [id]);
+  let artworksRes = { rows: [] as { id: number; title: string; medium: string; first_seen: string }[] };
+  try {
+    artworksRes = await pool.query(`
+      SELECT id, field_7600 as title, field_7603 as medium, field_7604::text as first_seen
+      FROM graph.artworks
+      WHERE field_7602 = $1
+      ORDER BY field_7604 DESC NULLS LAST
+    `, [id]);
+  } catch { /* artworks table may not exist yet */ }
 
   return {
     id: r.id,
@@ -245,7 +288,7 @@ export async function fetchPerson(pool: Pool, id: number): Promise<Person | null
     telegram: r.field_7581 || null,
     bio: r.field_7582 || null,
     roles: rolesRes.rows.map(rr => ({
-      role: rr.role_id || rr.role_text || 'other',
+      role: resolve(rr.role_id, ROLES) || rr.role_text || 'other',
       roleText: rr.role_text || null,
       period: rr.period || null,
       personId: null, personName: null,
@@ -255,7 +298,7 @@ export async function fetchPerson(pool: Pool, id: number): Promise<Person | null
     events: eventsRes.rows.map(er => ({
       id: er.id,
       name: er.name || 'Unknown',
-      type: er.type ? String(er.type) : null,
+      type: resolve(er.type, EVENT_TYPES),
       dateStart: er.date_start || null,
     })),
     artworks: (artworksRes?.rows || []).map(ar => ({
@@ -287,7 +330,7 @@ export async function fetchEvent(pool: Pool, id: number): Promise<Event | null> 
   return {
     id: r.id,
     name: r.field_7542 || 'Unknown',
-    type: r.field_7543 ? String(r.field_7543) : null,
+    type: resolve(r.field_7543, EVENT_TYPES),
     venue: r.field_7544 || null,
     city: r.field_7545 || null,
     dateStart: r.field_7546 ? String(r.field_7546) : null,
