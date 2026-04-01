@@ -83,6 +83,7 @@ export async function fetchGraphData(pool: Pool): Promise<GraphData> {
            field_7472::text as rel_type, field_7473 as weight,
            field_7475::text as date
     FROM graph.edges
+    WHERE field_7614 != 'artworks' AND field_7615 != 'artworks'
   `;
 
   const [nodesRes, rolesRes, eventProjRes, entityMapRes, graphEdgesRes] = await Promise.all([
