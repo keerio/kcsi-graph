@@ -2,17 +2,17 @@ services:
   kcsi-graph:
     build: .
     container_name: kcsi-graph
-    ports:
-      - "3200:3000"
+    network_mode: host
     environment:
       - DB_HOST=${DB_HOST:-10.0.0.159}
       - DB_PORT=${DB_PORT:-5432}
       - DB_NAME=${DB_NAME:-kcsi}
       - DB_USER=${DB_USER:-postgres}
       - DB_PASS=${DB_PASS:-TCppNjNQ9TOXwUEpZWsbZxnt}
+      - PORT=3200
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3200"]
       interval: 30s
       timeout: 10s
       retries: 3
