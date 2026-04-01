@@ -1,13 +1,13 @@
 'use client';
 
-import type { Project } from '@/lib/types';
+import type { Project, EntityType } from '@/lib/types';
 import { PROJECT_TYPE_LABELS, EVENT_TYPE_LABELS } from '@/lib/constants';
 import ContactLine from './ContactLine';
 import RoleBadge from './RoleBadge';
 
 interface ProjectCardProps {
   project: Project;
-  onNavigate: (type: 'person' | 'event', id: number) => void;
+  onNavigate: (type: EntityType, id: number) => void;
 }
 
 export default function ProjectCard({ project, onNavigate }: ProjectCardProps) {

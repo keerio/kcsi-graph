@@ -1,12 +1,12 @@
 'use client';
 
-import type { Person } from '@/lib/types';
+import type { Person, EntityType } from '@/lib/types';
 import ContactLine from './ContactLine';
 import RoleBadge from './RoleBadge';
 
 interface PersonCardProps {
   person: Person;
-  onNavigate: (type: 'project', id: number) => void;
+  onNavigate: (type: EntityType, id: number) => void;
 }
 
 export default function PersonCard({ person, onNavigate }: PersonCardProps) {

@@ -84,12 +84,9 @@ export default function Graph({
       edgeCount.set(tgt, (edgeCount.get(tgt) || 0) + 1);
     }
 
-    // Filter nodes: visible type + has at least one edge (or is selected/highlighted)
+    // Show all nodes of visible types — don't remove nodes on selection
     const filteredNodes = data.nodes.filter(n => {
       if (!visibleTypes.has(n.type)) return false;
-      if (highlightNodes.size > 0) {
-        return highlightNodes.has(n.id) || n.id === selectedNode;
-      }
       return (edgeCount.get(n.id) || 0) > 0 || n.weight > 0;
     });
 

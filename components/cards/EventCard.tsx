@@ -1,11 +1,11 @@
 'use client';
 
-import type { Event } from '@/lib/types';
+import type { Event, EntityType } from '@/lib/types';
 import { EVENT_TYPE_LABELS } from '@/lib/constants';
 
 interface EventCardProps {
   event: Event;
-  onNavigate: (type: 'project', id: number) => void;
+  onNavigate: (type: EntityType, id: number) => void;
 }
 
 function formatDate(d: string | null): string {
