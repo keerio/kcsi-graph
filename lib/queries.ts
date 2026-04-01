@@ -36,11 +36,35 @@ export async function fetchGraphData(pool: Pool): Promise<GraphData> {
     WHERE field_7613 IS NOT NULL AND field_7613::text != '' AND field_7613::text != '0'
   `;
 
-  const [nodesRes, rolesRes, eventProjRes] = await Promise.all([
+  // Graph edges (table 766) reference entity IDs from table 764.
+  // Projects/People have source_entity_id (field_7575/field_7583) linking back to 764.
+  // Build ID translation maps to resolve edges.
+  const entityMapQuery = `
+    SELECT id, field_7575::text as eid, 'project' as type FROM graph.projects WHERE field_7575 IS NOT NULL AND field_7575::text != ''
+    UNION ALL
+    SELECT id, field_7583::text as eid, 'person' as type FROM graph.people WHERE field_7583 IS NOT NULL AND field_7583::text != ''
+  `;
+
+  const graphEdgesQuery = `
+    SELECT field_7468::text as from_id, field_7470::text as to_id,
+           field_7472::text as rel_type, field_7473 as weight,
+           field_7475::text as date
+    FROM graph.edges
+  `;
+
+  const [nodesRes, rolesRes, eventProjRes, entityMapRes, graphEdgesRes] = await Promise.all([
     pool.query(nodesQuery),
     pool.query(rolesEdgesQuery),
     pool.query(eventProjectQuery),
+    pool.query(entityMapQuery),
+    pool.query(graphEdgesQuery),
   ]);
+
+  // Build entity_764_id → node_id map
+  const eid2node = new Map<string, string>();
+  for (const row of entityMapRes.rows) {
+    eid2node.set(String(row.eid), `${row.type}_${row.id}`);
+  }
 
   const nodeMap = new Map<string, GraphNode>();
   const weightMap = new Map<string, number>();
@@ -59,7 +83,26 @@ export async function fetchGraphData(pool: Pool): Promise<GraphData> {
   }
 
   const edges: GraphEdge[] = [];
+  const RELATION_LABELS: Record<string, string> = {
+    '3202': 'co_mention', '3203': 'tagged',
+    '3267': 'participates_in', '3268': 'shows_work',
+    '3269': 'organizes', '3270': 'located_in', '3271': 'authored_by',
+  };
 
+  // Graph edges (table 766) — resolve via entity map
+  for (const row of graphEdgesRes.rows) {
+    const sourceId = eid2node.get(row.from_id);
+    const targetId = eid2node.get(row.to_id);
+    if (!sourceId || !targetId || !nodeMap.has(sourceId) || !nodeMap.has(targetId)) continue;
+    if (sourceId === targetId) continue;
+    const relType = RELATION_LABELS[row.rel_type] || 'related';
+    const w = parseFloat(row.weight) || 1;
+    edges.push({ source: sourceId, target: targetId, type: relType, weight: w, date: row.date || null });
+    weightMap.set(sourceId, (weightMap.get(sourceId) || 0) + w);
+    weightMap.set(targetId, (weightMap.get(targetId) || 0) + w);
+  }
+
+  // Roles edges (person↔project)
   for (const row of rolesRes.rows) {
     const sourceId = `person_${row.person_id}`;
     const targetId = `project_${row.project_id}`;
@@ -69,6 +112,7 @@ export async function fetchGraphData(pool: Pool): Promise<GraphData> {
     weightMap.set(targetId, (weightMap.get(targetId) || 0) + 1);
   }
 
+  // Event→Project edges
   for (const row of eventProjRes.rows) {
     const sourceId = `event_${row.event_id}`;
     let projId: number;
@@ -87,7 +131,7 @@ export async function fetchGraphData(pool: Pool): Promise<GraphData> {
 
   const edgeMap = new Map<string, GraphEdge>();
   for (const e of edges) {
-    const key = `${e.source}|${e.target}`;
+    const key = [e.source, e.target].sort().join('|');
     const existing = edgeMap.get(key);
     if (existing) existing.weight += e.weight;
     else edgeMap.set(key, { ...e });
