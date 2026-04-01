@@ -108,9 +108,24 @@ export default function Graph({
       }
     }
 
+    // Count distinct neighbors per event node
+    const eventNeighborCount = new Map<string, number>();
+    for (const e of filteredEdges) {
+      const src = getNodeId(e.source);
+      const tgt = getNodeId(e.target);
+      if (src.startsWith('event_')) eventNeighborCount.set(src, (eventNeighborCount.get(src) || 0) + 1);
+      if (tgt.startsWith('event_')) eventNeighborCount.set(tgt, (eventNeighborCount.get(tgt) || 0) + 1);
+    }
+
     const filteredNodes = data.nodes.filter(n => {
       if (!visibleTypes.has(n.type)) return false;
-      return keepNodes.has(n.id);
+      if (!keepNodes.has(n.id)) return false;
+      // Events: show if selected/highlighted, OR shared by 2+ people
+      if (n.type === 'event') {
+        if (highlightNodes.has(n.id) || n.id === selectedNode) return true;
+        return (eventNeighborCount.get(n.id) || 0) >= 2;
+      }
+      return true;
     });
 
     for (const n of filteredNodes) visibleNodeIds.add(n.id);
@@ -179,15 +194,15 @@ export default function Graph({
       ctx.shadowBlur = 0;
     }
 
-    // Label: always for hubs, otherwise on zoom/select/highlight
+    // Labels: hubs always, others only on select/highlight
     const hub = isHub(node);
-    const showLabel = hub || isSelected || isHighlighted || globalScale > 1.5 || (globalScale > 0.8 && node.weight >= 3);
+    const showLabel = hub || isSelected || isHighlighted;
     if (showLabel && !dimmed) {
-      const fontSize = Math.max(10, (hub ? 14 : 12) / globalScale);
+      const fontSize = Math.max(10, (hub ? 14 : 11) / globalScale);
       ctx.font = `${hub ? 'bold ' : ''}${fontSize}px Inter, system-ui, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
-      ctx.fillStyle = isSelected || isHighlighted ? '#f8fafc' : hub ? '#e2e8f0' : '#cbd5e1';
+      ctx.fillStyle = isSelected || isHighlighted ? '#f8fafc' : hub ? '#e2e8f0' : '#94a3b8';
       const lines = wrapText(node.name, 30);
       const lineHeight = fontSize * 1.2;
       let y = node.y! + r + 2 / globalScale;
