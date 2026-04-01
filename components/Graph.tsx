@@ -3,7 +3,7 @@
 import { useRef, useCallback, useEffect, useState, useMemo } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
 import type { GraphNode, GraphEdge, GraphData, EntityType } from '@/lib/types';
-import { NODE_COLORS, NODE_COLORS_DIM, EDGE_COLORS, nodeRadius, seedPosition } from '@/lib/graph-utils';
+import { NODE_COLORS, NODE_COLORS_DIM, EDGE_COLORS, nodeRadius, seedPosition, isHub, wrapText } from '@/lib/graph-utils';
 
 interface GraphProps {
   data: GraphData;
@@ -75,27 +75,49 @@ export default function Graph({
       });
     }
 
-    // Count connections per node (from filtered edges)
-    const edgeCount = new Map<string, number>();
+    // Build adjacency list for connected component analysis
+    const adj = new Map<string, Set<string>>();
+    const getNodeId = (x: string | GraphNode) => typeof x === 'string' ? x : (x as unknown as GraphNode).id;
     for (const e of filteredEdges) {
-      const src = typeof e.source === 'string' ? e.source : (e.source as unknown as GraphNode).id;
-      const tgt = typeof e.target === 'string' ? e.target : (e.target as unknown as GraphNode).id;
-      edgeCount.set(src, (edgeCount.get(src) || 0) + 1);
-      edgeCount.set(tgt, (edgeCount.get(tgt) || 0) + 1);
+      const src = getNodeId(e.source);
+      const tgt = getNodeId(e.target);
+      if (!adj.has(src)) adj.set(src, new Set());
+      if (!adj.has(tgt)) adj.set(tgt, new Set());
+      adj.get(src)!.add(tgt);
+      adj.get(tgt)!.add(src);
     }
 
-    // Show all nodes of visible types — don't remove nodes on selection
+    // Find connected components via BFS, keep only components with size > 3
+    const visited = new Set<string>();
+    const keepNodes = new Set<string>();
+    for (const nodeId of adj.keys()) {
+      if (visited.has(nodeId)) continue;
+      const component: string[] = [];
+      const queue = [nodeId];
+      while (queue.length > 0) {
+        const cur = queue.pop()!;
+        if (visited.has(cur)) continue;
+        visited.add(cur);
+        component.push(cur);
+        for (const neighbor of adj.get(cur) || []) {
+          if (!visited.has(neighbor)) queue.push(neighbor);
+        }
+      }
+      if (component.length > 3) {
+        for (const id of component) keepNodes.add(id);
+      }
+    }
+
     const filteredNodes = data.nodes.filter(n => {
       if (!visibleTypes.has(n.type)) return false;
-      return (edgeCount.get(n.id) || 0) > 0 || n.weight > 0;
+      return keepNodes.has(n.id);
     });
 
     for (const n of filteredNodes) visibleNodeIds.add(n.id);
 
-    // Only keep edges where both endpoints are visible
     const visibleEdges = filteredEdges.filter(e => {
-      const src = typeof e.source === 'string' ? e.source : (e.source as unknown as GraphNode).id;
-      const tgt = typeof e.target === 'string' ? e.target : (e.target as unknown as GraphNode).id;
+      const src = getNodeId(e.source);
+      const tgt = getNodeId(e.target);
       return visibleNodeIds.has(src) && visibleNodeIds.has(tgt);
     });
 
@@ -157,15 +179,22 @@ export default function Graph({
       ctx.shadowBlur = 0;
     }
 
-    // Label (show when zoomed in enough or for highlighted/high-weight nodes)
-    const showLabel = globalScale > 1.5 || isSelected || isHighlighted || (globalScale > 0.8 && node.weight >= 3);
+    // Label: always for hubs, otherwise on zoom/select/highlight
+    const hub = isHub(node);
+    const showLabel = hub || isSelected || isHighlighted || globalScale > 1.5 || (globalScale > 0.8 && node.weight >= 3);
     if (showLabel && !dimmed) {
-      const fontSize = Math.max(10, 12 / globalScale);
-      ctx.font = `${fontSize}px Inter, system-ui, sans-serif`;
+      const fontSize = Math.max(10, (hub ? 14 : 12) / globalScale);
+      ctx.font = `${hub ? 'bold ' : ''}${fontSize}px Inter, system-ui, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
-      ctx.fillStyle = isSelected || isHighlighted ? '#f8fafc' : '#cbd5e1';
-      ctx.fillText(node.name, node.x!, node.y! + r + 2 / globalScale);
+      ctx.fillStyle = isSelected || isHighlighted ? '#f8fafc' : hub ? '#e2e8f0' : '#cbd5e1';
+      const lines = wrapText(node.name, 30);
+      const lineHeight = fontSize * 1.2;
+      let y = node.y! + r + 2 / globalScale;
+      for (const line of lines) {
+        ctx.fillText(line, node.x!, y);
+        y += lineHeight;
+      }
     }
   }, [selectedNode, highlightNodes, isHighlighting]);
 

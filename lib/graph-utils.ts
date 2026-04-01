@@ -61,6 +61,28 @@ export const EDGE_COLORS: Record<string, string> = {
 };
 
 export function nodeRadius(node: GraphNode, zoom: number): number {
-  const base = Math.max(3, Math.min(12, 3 + Math.sqrt(node.weight) * 1.5));
+  // Hubs (weight >= 5) are significantly larger
+  const base = Math.max(3, Math.min(20, 3 + Math.pow(node.weight, 0.6) * 2));
   return base / Math.sqrt(zoom);
+}
+
+export function isHub(node: GraphNode): boolean {
+  return node.weight >= 5;
+}
+
+// Word-wrap text at maxChars per line
+export function wrapText(text: string, maxChars: number): string[] {
+  const words = text.split(/\s+/);
+  const lines: string[] = [];
+  let current = '';
+  for (const word of words) {
+    if (current && (current.length + 1 + word.length) > maxChars) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = current ? current + ' ' + word : word;
+    }
+  }
+  if (current) lines.push(current);
+  return lines;
 }
