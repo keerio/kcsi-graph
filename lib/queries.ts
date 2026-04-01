@@ -28,6 +28,7 @@ export async function fetchGraphData(pool: Pool): Promise<GraphData> {
     SELECT field_7585 as person_id, field_7584 as project_id
     FROM graph.roles
     WHERE field_7585 IS NOT NULL AND field_7584 IS NOT NULL
+      AND field_7586::text != '3266'
   `;
 
   const eventProjectQuery = `
