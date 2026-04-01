@@ -103,7 +103,6 @@ export default function Graph({
   }, [data, visibleTypes, dateRange, highlightNodes, selectedNode]);
 
   const handleNodeClick = useCallback((node: GraphNode) => {
-    // Pin the node
     node.fx = node.x;
     node.fy = node.y;
     onNodeClick(node.id, node.type, node.dbId);
@@ -117,6 +116,16 @@ export default function Graph({
     }
     onBackgroundClick();
   }, [data, onBackgroundClick]);
+
+  // Zoom to selected node (also triggered by card navigation)
+  useEffect(() => {
+    if (!selectedNode || !fgRef.current) return;
+    const node = data.nodes.find(n => n.id === selectedNode);
+    if (node && node.x !== undefined && node.y !== undefined) {
+      fgRef.current.centerAt(node.x, node.y, 400);
+      fgRef.current.zoom(3, 400);
+    }
+  }, [selectedNode, data.nodes]);
 
   const isHighlighting = highlightNodes.size > 0;
 

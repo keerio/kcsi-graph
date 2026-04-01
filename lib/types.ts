@@ -64,6 +64,15 @@ export interface Person {
   telegram: string | null;
   bio: string | null;
   roles: RoleEntry[];
+  events: EventSummary[];
+  artworks: ArtworkSummary[];
+}
+
+export interface ArtworkSummary {
+  id: number;
+  title: string;
+  medium: string | null;
+  firstSeen: string | null;
 }
 
 export interface Event {

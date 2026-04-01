@@ -211,6 +211,26 @@ export async function fetchPerson(pool: Pool, id: number): Promise<Person | null
     WHERE r.field_7585 = $1
   `, [id]);
 
+  // Events linked to this person via graph edges (PARTICIPATES_IN, ORGANIZES)
+  const eventsRes = await pool.query(`
+    SELECT DISTINCT e.id, e.field_7542 as name, e.field_7543::text as type, e.field_7546::text as date_start
+    FROM graph.edges ed
+    JOIN graph.events e ON (
+      (ed.field_7470 = $1 AND e.id = ed.field_7468) OR
+      (ed.field_7468 = $1 AND e.id = ed.field_7470)
+    )
+    WHERE ed.field_7472::text IN ('3267', '3269')
+    ORDER BY e.field_7546 DESC NULLS LAST
+  `, [id]);
+
+  // Artworks by this person (author_id = person id)
+  const artworksRes = await pool.query(`
+    SELECT id, field_7600 as title, field_7603 as medium, field_7604::text as first_seen
+    FROM graph.artworks
+    WHERE field_7602 = $1
+    ORDER BY field_7604 DESC NULLS LAST
+  `, [id]);
+
   return {
     id: r.id,
     name: r.field_7559 || 'Unknown',
@@ -230,6 +250,18 @@ export async function fetchPerson(pool: Pool, id: number): Promise<Person | null
       personId: null, personName: null,
       projectId: rr.project_id || null,
       projectName: rr.project_name || null,
+    })),
+    events: eventsRes.rows.map(er => ({
+      id: er.id,
+      name: er.name || 'Unknown',
+      type: er.type ? String(er.type) : null,
+      dateStart: er.date_start || null,
+    })),
+    artworks: (artworksRes?.rows || []).map(ar => ({
+      id: ar.id,
+      title: ar.title || 'Untitled',
+      medium: ar.medium || null,
+      firstSeen: ar.first_seen || null,
     })),
   };
 }
