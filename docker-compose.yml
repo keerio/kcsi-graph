@@ -5,11 +5,11 @@ services:
     ports:
       - "3200:3000"
     environment:
-      - BASEROW_DB_HOST=${BASEROW_DB_HOST:-10.0.0.159}
-      - BASEROW_DB_PORT=${BASEROW_DB_PORT:-5433}
-      - BASEROW_DB_NAME=${BASEROW_DB_NAME:-baserow}
-      - BASEROW_DB_USER=${BASEROW_DB_USER:-baserow}
-      - BASEROW_DB_PASS=${BASEROW_DB_PASS:-baserow}
+      - DB_HOST=${DB_HOST:-10.0.0.159}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_NAME=${DB_NAME:-kcsi}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASS=${DB_PASS:-TCppNjNQ9TOXwUEpZWsbZxnt}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
