@@ -26,7 +26,6 @@ const CITY_POSITIONS: Record<string, { x: number; y: number }> = {
 export function seedPosition(node: GraphNode): { x: number; y: number } {
   const city = node.city?.toLowerCase().trim() || '';
   const base = CITY_POSITIONS[city] || { x: 0, y: 0 };
-  // Add jitter so nodes don't stack
   const jitter = 80;
   return {
     x: base.x + (Math.random() - 0.5) * jitter,
@@ -34,34 +33,30 @@ export function seedPosition(node: GraphNode): { x: number; y: number } {
   };
 }
 
-// Node colors by type
+// Colors per BACKEND.md spec
 export const NODE_COLORS: Record<string, string> = {
-  project: '#3b82f6',  // blue-500
-  person: '#a855f7',   // purple-500
+  project: '#22c55e',  // green-500
+  person: '#3b82f6',   // blue-500
   event: '#f59e0b',    // amber-500
 };
 
 export const NODE_COLORS_DIM: Record<string, string> = {
-  project: '#3b82f633',
-  person: '#a855f733',
+  project: '#22c55e33',
+  person: '#3b82f633',
   event: '#f59e0b33',
 };
 
-// Edge colors by type
+// Edge colors by relation type
 export const EDGE_COLORS: Record<string, string> = {
-  has_role: '#6366f1',      // indigo
-  hosted_by: '#10b981',     // emerald
-  co_mention: '#94a3b8',    // slate
-  tagged: '#3b82f6',        // blue
-  participates_in: '#22c55e', // green
-  shows_work: '#f97316',    // orange
-  organizes: '#ef4444',     // red
-  located_in: '#8b5cf6',    // violet
-  authored_by: '#ec4899',   // pink
+  has_role: '#6366f1',        // indigo
+  participates_in: '#3b82f6', // blue
+  shows_work: '#f97316',      // orange
+  organizes: '#ef4444',       // red
+  authored_by: '#ec4899',     // pink
+  hosted_by: '#10b981',       // emerald
 };
 
 export function nodeRadius(node: GraphNode, zoom: number): number {
-  // Hubs (weight >= 5) are significantly larger
   const base = Math.max(3, Math.min(20, 3 + Math.pow(node.weight, 0.6) * 2));
   return base / Math.sqrt(zoom);
 }
@@ -70,7 +65,6 @@ export function isHub(node: GraphNode): boolean {
   return node.type === 'project' && node.weight >= 3;
 }
 
-// Word-wrap text at maxChars per line
 export function wrapText(text: string, maxChars: number): string[] {
   const words = text.split(/\s+/);
   const lines: string[] = [];

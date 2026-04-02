@@ -76,11 +76,12 @@ export default function Home() {
   }, []);
 
   const handleNavigate = useCallback((type: EntityType, id: number) => {
-    const nodeId = `${type}_${id}`;
-    setSelectedNodeId(nodeId);
+    // Find node UUID by dbId and type
+    const node = graphData?.nodes.find(n => n.type === type && n.dbId === id);
+    setSelectedNodeId(node?.id || null);
     setSelectedType(type);
     setSelectedDbId(id);
-  }, []);
+  }, [graphData]);
 
   const handleToggleType = useCallback((type: EntityType) => {
     setVisibleTypes(prev => {
