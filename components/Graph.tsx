@@ -108,24 +108,24 @@ export default function Graph({
       }
     }
 
-    // Count distinct neighbors per event node
-    const eventNeighborCount = new Map<string, number>();
+    // Count edges per node
+    const nodeEdgeCount = new Map<string, number>();
     for (const e of filteredEdges) {
       const src = getNodeId(e.source);
       const tgt = getNodeId(e.target);
-      if (src.startsWith('event_')) eventNeighborCount.set(src, (eventNeighborCount.get(src) || 0) + 1);
-      if (tgt.startsWith('event_')) eventNeighborCount.set(tgt, (eventNeighborCount.get(tgt) || 0) + 1);
+      nodeEdgeCount.set(src, (nodeEdgeCount.get(src) || 0) + 1);
+      nodeEdgeCount.set(tgt, (nodeEdgeCount.get(tgt) || 0) + 1);
     }
 
     const filteredNodes = data.nodes.filter(n => {
       if (!visibleTypes.has(n.type)) return false;
       if (!keepNodes.has(n.id)) return false;
-      // Events: show if selected/highlighted, OR shared by 2+ people
-      if (n.type === 'event') {
-        if (highlightNodes.has(n.id) || n.id === selectedNode) return true;
-        return (eventNeighborCount.get(n.id) || 0) >= 2;
-      }
-      return true;
+      // Projects always visible
+      if (n.type === 'project') return true;
+      // Selected/highlighted always visible
+      if (highlightNodes.has(n.id) || n.id === selectedNode) return true;
+      // People & events: only show if 2+ edges (connecting nodes)
+      return (nodeEdgeCount.get(n.id) || 0) >= 2;
     });
 
     for (const n of filteredNodes) visibleNodeIds.add(n.id);
