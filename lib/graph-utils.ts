@@ -67,7 +67,7 @@ export function nodeRadius(node: GraphNode, zoom: number): number {
 }
 
 export function isHub(node: GraphNode): boolean {
-  return node.weight >= 5;
+  return node.type === 'project' && node.weight >= 3;
 }
 
 // Word-wrap text at maxChars per line
