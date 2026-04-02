@@ -171,44 +171,70 @@ export default function Graph({
     const isSelected = node.id === selectedNode;
     const isHighlighted = highlightNodes.has(node.id);
     const dimmed = isHighlighting && !isHighlighted && !isSelected;
+    const color = dimmed ? NODE_COLORS_DIM[node.type] : NODE_COLORS[node.type];
 
-    // Node circle
-    ctx.beginPath();
-    ctx.arc(node.x!, node.y!, r, 0, 2 * Math.PI);
-    ctx.fillStyle = dimmed ? NODE_COLORS_DIM[node.type] : NODE_COLORS[node.type];
-    ctx.fill();
+    // Shape by type
+    if (node.type === 'project') {
+      // Rounded rectangle
+      const w = r * 2;
+      const h = r * 1.4;
+      const cr = r * 0.3; // corner radius
+      const x = node.x! - w / 2;
+      const y = node.y! - h / 2;
+      ctx.beginPath();
+      ctx.moveTo(x + cr, y);
+      ctx.lineTo(x + w - cr, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + cr);
+      ctx.lineTo(x + w, y + h - cr);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - cr, y + h);
+      ctx.lineTo(x + cr, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - cr);
+      ctx.lineTo(x, y + cr);
+      ctx.quadraticCurveTo(x, y, x + cr, y);
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.fill();
+    } else if (node.type === 'event') {
+      // Diamond
+      ctx.beginPath();
+      ctx.moveTo(node.x!, node.y! - r);
+      ctx.lineTo(node.x! + r * 0.8, node.y!);
+      ctx.lineTo(node.x!, node.y! + r);
+      ctx.lineTo(node.x! - r * 0.8, node.y!);
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.fill();
+    } else {
+      // Circle (people)
+      ctx.beginPath();
+      ctx.arc(node.x!, node.y!, r, 0, 2 * Math.PI);
+      ctx.fillStyle = color;
+      ctx.fill();
+    }
 
     // Selection ring
     if (isSelected) {
       ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2 / globalScale;
-      ctx.stroke();
-      // Glow
-      ctx.shadowColor = NODE_COLORS[node.type];
-      ctx.shadowBlur = 8 / globalScale;
-      ctx.beginPath();
-      ctx.arc(node.x!, node.y!, r + 2 / globalScale, 0, 2 * Math.PI);
-      ctx.strokeStyle = NODE_COLORS[node.type];
       ctx.lineWidth = 1.5 / globalScale;
       ctx.stroke();
-      ctx.shadowBlur = 0;
     }
 
-    // Labels: hubs always, others only on select/highlight
+    // Labels
     const hub = isHub(node);
     const showLabel = hub || isSelected || isHighlighted;
     if (showLabel && !dimmed) {
-      const fontSize = Math.max(10, (hub ? 14 : 11) / globalScale);
-      ctx.font = `${hub ? 'bold ' : ''}${fontSize}px Inter, system-ui, sans-serif`;
+      // Thin font always — 300 weight for hubs, normal for hover
+      const fontSize = Math.max(10, (hub ? 12 : 11) / globalScale);
+      ctx.font = `300 ${fontSize}px Inter, system-ui, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
-      ctx.fillStyle = isSelected || isHighlighted ? '#f8fafc' : hub ? '#e2e8f0' : '#94a3b8';
+      ctx.fillStyle = isSelected || isHighlighted ? '#f8fafc' : '#94a3b8';
       const lines = wrapText(node.name, 30);
       const lineHeight = fontSize * 1.2;
-      let y = node.y! + r + 2 / globalScale;
+      let ly = node.y! + r + 3 / globalScale;
       for (const line of lines) {
-        ctx.fillText(line, node.x!, y);
-        y += lineHeight;
+        ctx.fillText(line, node.x!, ly);
+        ly += lineHeight;
       }
     }
   }, [selectedNode, highlightNodes, isHighlighting]);
@@ -227,19 +253,30 @@ export default function Graph({
     // Curved arc
     const dx = tgt.x! - src.x!;
     const dy = tgt.y! - src.y!;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    const curvature = 0.2;
+    const curvature = 0.15;
     const cx = (src.x! + tgt.x!) / 2 - dy * curvature;
     const cy = (src.y! + tgt.y!) / 2 + dx * curvature;
+
+    // Line width by relation type
+    const widthByType: Record<string, number> = {
+      participates_in: 0.5, shows_work: 1, organizes: 1.2, has_role: 0.5,
+    };
+    const baseWidth = widthByType[link.type] || 0.5;
+    ctx.lineWidth = (dimmed ? baseWidth * 0.3 : baseWidth) / globalScale;
+    ctx.strokeStyle = dimmed ? '#33415520' : (EDGE_COLORS[link.type] || '#64748b') + (dimmed ? '40' : '60');
+
+    // Dashed for organizes
+    if (link.type === 'organizes') {
+      ctx.setLineDash([4 / globalScale, 3 / globalScale]);
+    } else {
+      ctx.setLineDash([]);
+    }
 
     ctx.beginPath();
     ctx.moveTo(src.x!, src.y!);
     ctx.quadraticCurveTo(cx, cy, tgt.x!, tgt.y!);
-
-    const baseWidth = Math.max(0.5, Math.min(3, link.weight * 0.5));
-    ctx.lineWidth = (dimmed ? baseWidth * 0.3 : baseWidth) / globalScale;
-    ctx.strokeStyle = dimmed ? '#33415520' : (EDGE_COLORS[link.type] || '#64748b') + (dimmed ? '40' : '80');
     ctx.stroke();
+    ctx.setLineDash([]);
   }, [selectedNode, isHighlighting]);
 
   return (

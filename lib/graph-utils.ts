@@ -57,7 +57,15 @@ export const EDGE_COLORS: Record<string, string> = {
 };
 
 export function nodeRadius(node: GraphNode, zoom: number): number {
-  const base = Math.max(3, Math.min(20, 3 + Math.pow(node.weight, 0.6) * 2));
+  // Size hierarchy: project > event > person
+  let base: number;
+  if (node.type === 'project') {
+    base = Math.max(10, Math.min(24, 10 + Math.pow(node.weight, 0.5) * 2));
+  } else if (node.type === 'event') {
+    base = Math.max(4, Math.min(10, 4 + Math.pow(node.weight, 0.5) * 1.2));
+  } else {
+    base = Math.max(3, Math.min(6, 3 + Math.pow(node.weight, 0.5) * 0.5));
+  }
   return base / Math.sqrt(zoom);
 }
 
