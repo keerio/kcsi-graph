@@ -203,8 +203,8 @@ export default function Graph({
 
   const isHighlighting = highlightNodes.size > 0;
 
-  // Per-frame label deconfliction: reset every ~16ms
-  const labelFrameRef = useRef<{ t: number; pts: Array<{ x: number; y: number }> }>({ t: 0, pts: [] });
+  // Per-frame AABB label deconfliction (world-space coordinates)
+  const labelFrameRef = useRef<{ t: number; rects: Array<{ l: number; r: number; t: number; b: number }> }>({ t: 0, rects: [] });
 
   const nodeCanvasObject = useCallback((node: GraphNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
     const r = nodeRadius(node, globalScale);
@@ -269,45 +269,54 @@ export default function Graph({
     const isInstitution = node.type === 'institution';
     const showLabel = isInstitution || isSelected || isHighlighted;
     if (showLabel && !dimmed) {
-      // Per-frame deconfliction reset
+      // Per-frame deconfliction reset (~60fps)
       const now = Date.now();
       if (now - labelFrameRef.current.t > 14) {
-        labelFrameRef.current = { t: now, pts: [] };
+        labelFrameRef.current = { t: now, rects: [] };
       }
 
       const fontSize = isSelected
         ? Math.max(9, 11 / globalScale)
         : Math.max(6, (isInstitution ? 9 : 8) / globalScale);
       const lineHeight = fontSize * 1.35;
-      const lines = wrapText(node.name, 28);
-      const labelH = lines.length * lineHeight;
+      // Aggressive wrap: ~14 chars per line (2× shorter than before)
+      const lines = wrapText(node.name, 14);
 
-      // Collision check: skip non-selected labels that overlap previous ones
+      // Set font first so measureText works
+      ctx.font = `${isSelected ? '400' : '200'} ${fontSize}px Inter, system-ui, sans-serif`;
+      const maxLineW = Math.max(...lines.map(l => ctx.measureText(l).width));
+      const labelH = lines.length * lineHeight;  // world units (font is in world space)
+      const ly0 = node.y! + r + 2 / globalScale;
+      const pad = fontSize * 0.4;
+
+      // AABB in world space
+      const newRect = {
+        l: node.x! - maxLineW / 2 - pad,
+        r: node.x! + maxLineW / 2 + pad,
+        t: ly0 - pad,
+        b: ly0 + labelH + pad,
+      };
+
+      // Check overlap against already-placed labels
       if (!isSelected) {
-        const minSep = (labelH + fontSize * 1.5) / globalScale;
-        const conflicts = labelFrameRef.current.pts.some(p => {
-          const dx = p.x - node.x!;
-          const dy = p.y - node.y!;
-          return Math.sqrt(dx * dx + dy * dy) < minSep;
-        });
-        if (conflicts) {
-          // Still register position to block others, but skip drawing for non-institution
-          if (!isInstitution) return;
-          // Institutions always draw, just register
-        }
+        const overlaps = labelFrameRef.current.rects.some(rc =>
+          newRect.l < rc.r && newRect.r > rc.l &&
+          newRect.t < rc.b && newRect.b > rc.t
+        );
+        if (overlaps && !isInstitution) return;
       }
 
-      ctx.font = `${isSelected ? '400' : '200'} ${fontSize}px Inter, system-ui, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
-      ctx.fillStyle = isSelected ? '#ffffff' : isHighlighted ? '#e2e8f0' : '#64748b';
-      let ly = node.y! + r + 2 / globalScale;
+      // Institutions: white on main view; highlighted neighbors: light; selected: pure white
+      ctx.fillStyle = isSelected ? '#ffffff' : (isHighlighted || isInstitution) ? '#e2e8f0' : '#94a3b8';
+      let ly = ly0;
       for (const line of lines) {
         ctx.fillText(line, node.x!, ly);
         ly += lineHeight;
       }
 
-      labelFrameRef.current.pts.push({ x: node.x!, y: node.y! });
+      labelFrameRef.current.rects.push(newRect);
     }
   }, [selectedNode, highlightNodes, isHighlighting, labelFrameRef]);
 
