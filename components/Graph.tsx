@@ -8,7 +8,7 @@ import { NODE_COLORS, NODE_COLORS_DIM, EDGE_COLORS, nodeRadius, seedPosition, is
 interface GraphProps {
   data: GraphData;
   selectedNode: string | null;
-  onNodeClick: (nodeId: string, type: EntityType, dbId: number) => void;
+  onNodeClick: (nodeId: string, type: EntityType) => void;
   onBackgroundClick: () => void;
   highlightNodes: Set<string>;
   visibleTypes: Set<EntityType>;
@@ -50,13 +50,11 @@ export default function Graph({
     }
   }, [data]);
 
-  // Cool down simulation after initial render
+  // Configure simulation
   useEffect(() => {
     if (fgRef.current) {
       fgRef.current.d3Force('charge')?.strength(-20);
-      fgRef.current.d3Force('link')?.distance((link: { weight?: number }) =>
-        80 / Math.max(1, link.weight || 1)
-      );
+      fgRef.current.d3Force('link')?.distance(80);
       // Stop simulation after 4 seconds
       setTimeout(() => fgRef.current?.cooldownTicks(0), 4000);
     }
@@ -70,12 +68,12 @@ export default function Graph({
     let filteredEdges = data.edges;
     if (dateRange) {
       filteredEdges = data.edges.filter(e => {
-        if (!e.date) return true; // edges without dates always visible
+        if (!e.date) return true;
         return e.date >= dateRange[0] && e.date <= dateRange[1];
       });
     }
 
-    // Build adjacency list for connected component analysis
+    // Build adjacency for connected component analysis
     const adj = new Map<string, Set<string>>();
     const getNodeId = (x: string | GraphNode) => typeof x === 'string' ? x : (x as unknown as GraphNode).id;
     for (const e of filteredEdges) {
@@ -87,7 +85,7 @@ export default function Graph({
       adj.get(tgt)!.add(src);
     }
 
-    // Find connected components via BFS, keep only components with size > 3
+    // Keep only connected components with > 3 nodes
     const visited = new Set<string>();
     const keepNodes = new Set<string>();
     for (const nodeId of adj.keys()) {
@@ -120,11 +118,11 @@ export default function Graph({
     const filteredNodes = data.nodes.filter(n => {
       if (!visibleTypes.has(n.type)) return false;
       if (!keepNodes.has(n.id)) return false;
-      // Projects always visible
-      if (n.type === 'project') return true;
+      // Institutions always visible
+      if (n.type === 'institution') return true;
       // Selected/highlighted always visible
       if (highlightNodes.has(n.id) || n.id === selectedNode) return true;
-      // People & events: only show if 2+ edges (connecting nodes)
+      // Others: only show if 2+ edges
       return (nodeEdgeCount.get(n.id) || 0) >= 2;
     });
 
@@ -142,11 +140,10 @@ export default function Graph({
   const handleNodeClick = useCallback((node: GraphNode) => {
     node.fx = node.x;
     node.fy = node.y;
-    onNodeClick(node.id, node.type, node.dbId);
+    onNodeClick(node.id, node.type);
   }, [onNodeClick]);
 
   const handleBackgroundClick = useCallback(() => {
-    // Unpin all nodes
     for (const node of data.nodes) {
       node.fx = undefined;
       node.fy = undefined;
@@ -154,7 +151,7 @@ export default function Graph({
     onBackgroundClick();
   }, [data, onBackgroundClick]);
 
-  // Zoom to selected node (also triggered by card navigation)
+  // Zoom to selected node
   useEffect(() => {
     if (!selectedNode || !fgRef.current) return;
     const node = data.nodes.find(n => n.id === selectedNode);
@@ -174,11 +171,11 @@ export default function Graph({
     const color = dimmed ? NODE_COLORS_DIM[node.type] : NODE_COLORS[node.type];
 
     // Shape by type
-    if (node.type === 'project') {
+    if (node.type === 'institution') {
       // Rounded rectangle
       const w = r * 2;
       const h = r * 1.4;
-      const cr = r * 0.3; // corner radius
+      const cr = r * 0.3;
       const x = node.x! - w / 2;
       const y = node.y! - h / 2;
       ctx.beginPath();
@@ -204,8 +201,18 @@ export default function Graph({
       ctx.closePath();
       ctx.fillStyle = color;
       ctx.fill();
+    } else if (node.type === 'venue') {
+      // Pentagon-ish (square rotated 45°)
+      ctx.beginPath();
+      ctx.moveTo(node.x!, node.y! - r);
+      ctx.lineTo(node.x! + r, node.y!);
+      ctx.lineTo(node.x!, node.y! + r);
+      ctx.lineTo(node.x! - r, node.y!);
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.fill();
     } else {
-      // Circle (people)
+      // Circle (person, artwork)
       ctx.beginPath();
       ctx.arc(node.x!, node.y!, r, 0, 2 * Math.PI);
       ctx.fillStyle = color;
@@ -223,7 +230,6 @@ export default function Graph({
     const hub = isHub(node);
     const showLabel = hub || isSelected || isHighlighted;
     if (showLabel && !dimmed) {
-      // Thin font always — 300 weight for hubs, normal for hover
       const fontSize = Math.max(10, (hub ? 12 : 11) / globalScale);
       ctx.font = `300 ${fontSize}px Inter, system-ui, sans-serif`;
       ctx.textAlign = 'center';
@@ -250,23 +256,21 @@ export default function Graph({
 
     const dimmed = isHighlighting && !isLinkedToSelected;
 
-    // Curved arc
     const dx = tgt.x! - src.x!;
     const dy = tgt.y! - src.y!;
     const curvature = 0.15;
     const cx = (src.x! + tgt.x!) / 2 - dy * curvature;
     const cy = (src.y! + tgt.y!) / 2 + dx * curvature;
 
-    // Line width by relation type
     const widthByType: Record<string, number> = {
-      participates_in: 0.5, shows_work: 1, organizes: 1.2, has_role: 0.5,
+      participated_in: 0.5, artist_at: 1, exhibited_at: 1, founder: 1.2,
+      director: 1.2, curator: 1, organized: 1.2, member_of: 0.5,
     };
     const baseWidth = widthByType[link.type] || 0.5;
     ctx.lineWidth = (dimmed ? baseWidth * 0.3 : baseWidth) / globalScale;
     ctx.strokeStyle = dimmed ? '#33415520' : (EDGE_COLORS[link.type] || '#64748b') + (dimmed ? '40' : '60');
 
-    // Dashed for organizes
-    if (link.type === 'organizes') {
+    if (link.type === 'organized') {
       ctx.setLineDash([4 / globalScale, 3 / globalScale]);
     } else {
       ctx.setLineDash([]);

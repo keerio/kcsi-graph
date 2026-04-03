@@ -16,14 +16,13 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Selection state
+  // Selection state — uuid is the stable ID throughout
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [selectedType, setSelectedType] = useState<EntityType | null>(null);
-  const [selectedDbId, setSelectedDbId] = useState<number | null>(null);
+  const [selectedUuid, setSelectedUuid] = useState<string | null>(null);
 
   // Filters
   const [visibleTypes, setVisibleTypes] = useState<Set<EntityType>>(
-    new Set(['project', 'person', 'event'])
+    new Set(['person', 'institution', 'event', 'venue'] as EntityType[])
   );
   const [timelineRange, setTimelineRange] = useState<[number, number]>([2020, 2026]);
 
@@ -63,24 +62,21 @@ export default function Home() {
     return [`${timelineRange[0]}-01-01`, `${timelineRange[1]}-12-31`];
   }, [timelineRange]);
 
-  const handleNodeClick = useCallback((nodeId: string, type: EntityType, dbId: number) => {
+  const handleNodeClick = useCallback((nodeId: string, _type?: EntityType) => {
     setSelectedNodeId(nodeId);
-    setSelectedType(type);
-    setSelectedDbId(dbId);
+    setSelectedUuid(nodeId);
   }, []);
 
   const handleClose = useCallback(() => {
     setSelectedNodeId(null);
-    setSelectedType(null);
-    setSelectedDbId(null);
+    setSelectedUuid(null);
   }, []);
 
-  const handleNavigate = useCallback((type: EntityType, id: number) => {
-    // Find node UUID by dbId and type
-    const node = graphData?.nodes.find(n => n.type === type && n.dbId === id);
-    setSelectedNodeId(node?.id || null);
-    setSelectedType(type);
-    setSelectedDbId(id);
+  const handleNavigate = useCallback((uuid: string) => {
+    // Find node in graph by uuid — node.id === uuid
+    const node = graphData?.nodes.find(n => n.id === uuid);
+    setSelectedNodeId(node?.id || uuid);
+    setSelectedUuid(uuid);
   }, [graphData]);
 
   const handleToggleType = useCallback((type: EntityType) => {
@@ -95,8 +91,8 @@ export default function Home() {
     });
   }, []);
 
-  const handleSearchSelect = useCallback((type: EntityType, id: number) => {
-    handleNavigate(type, id);
+  const handleSearchSelect = useCallback((uuid: string) => {
+    handleNavigate(uuid);
   }, [handleNavigate]);
 
   if (loading) {
@@ -155,8 +151,7 @@ export default function Home() {
 
       {/* Detail panel */}
       <DetailPanel
-        entityType={selectedType}
-        entityId={selectedDbId}
+        entityUuid={selectedUuid}
         onClose={handleClose}
         onNavigate={handleNavigate}
       />

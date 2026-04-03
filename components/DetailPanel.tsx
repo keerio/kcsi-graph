@@ -1,25 +1,22 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { EntityType, Project, Person, Event } from '@/lib/types';
-import ProjectCard from './cards/ProjectCard';
-import PersonCard from './cards/PersonCard';
-import EventCard from './cards/EventCard';
+import type { Entity } from '@/lib/types';
+import EntityCard from './cards/EntityCard';
 
 interface DetailPanelProps {
-  entityType: EntityType | null;
-  entityId: number | null;
+  entityUuid: string | null;
   onClose: () => void;
-  onNavigate: (type: EntityType, id: number) => void;
+  onNavigate: (uuid: string) => void;
 }
 
-export default function DetailPanel({ entityType, entityId, onClose, onNavigate }: DetailPanelProps) {
-  const [data, setData] = useState<Project | Person | Event | null>(null);
+export default function DetailPanel({ entityUuid, onClose, onNavigate }: DetailPanelProps) {
+  const [data, setData] = useState<Entity | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!entityType || !entityId) {
+    if (!entityUuid) {
       setData(null);
       return;
     }
@@ -27,7 +24,7 @@ export default function DetailPanel({ entityType, entityId, onClose, onNavigate 
     setLoading(true);
     setError(null);
 
-    fetch(`/api/entities/${entityType}/${entityId}`)
+    fetch(`/api/entities/${entityUuid}`)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
@@ -35,9 +32,9 @@ export default function DetailPanel({ entityType, entityId, onClose, onNavigate 
       .then(setData)
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
-  }, [entityType, entityId]);
+  }, [entityUuid]);
 
-  const isOpen = entityType !== null && entityId !== null;
+  const isOpen = entityUuid !== null;
 
   // Handle Escape key
   useEffect(() => {
@@ -79,24 +76,10 @@ export default function DetailPanel({ entityType, entityId, onClose, onNavigate 
           </div>
         )}
 
-        {data && entityType === 'project' && (
-          <ProjectCard
-            project={data as Project}
-            onNavigate={(type, id) => onNavigate(type, id)}
-          />
-        )}
-
-        {data && entityType === 'person' && (
-          <PersonCard
-            person={data as Person}
-            onNavigate={(type, id) => onNavigate(type, id)}
-          />
-        )}
-
-        {data && entityType === 'event' && (
-          <EventCard
-            event={data as Event}
-            onNavigate={(type, id) => onNavigate(type, id)}
+        {data && (
+          <EntityCard
+            entity={data}
+            onNavigate={onNavigate}
           />
         )}
       </div>

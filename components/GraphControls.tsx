@@ -10,10 +10,11 @@ interface GraphControlsProps {
   edgeCount: number;
 }
 
-const TYPE_INFO: { type: EntityType; label: string; labelRu: string }[] = [
-  { type: 'project', label: 'Projects', labelRu: 'Проекты' },
-  { type: 'person', label: 'People', labelRu: 'Люди' },
-  { type: 'event', label: 'Events', labelRu: 'События' },
+const TYPE_INFO: { type: EntityType; labelRu: string }[] = [
+  { type: 'person', labelRu: 'Люди' },
+  { type: 'institution', labelRu: 'Институции' },
+  { type: 'event', labelRu: 'События' },
+  { type: 'venue', labelRu: 'Площадки' },
 ];
 
 export default function GraphControls({ visibleTypes, onToggleType, nodeCount, edgeCount }: GraphControlsProps) {

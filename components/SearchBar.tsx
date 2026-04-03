@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import type { SearchResult, EntityType } from '@/lib/types';
+import type { SearchResult } from '@/lib/types';
 import { NODE_COLORS } from '@/lib/graph-utils';
 
 interface SearchBarProps {
-  onSelect: (type: EntityType, id: number) => void;
+  onSelect: (uuid: string) => void;
 }
 
 export default function SearchBar({ onSelect }: SearchBarProps) {
@@ -75,9 +75,9 @@ export default function SearchBar({ onSelect }: SearchBarProps) {
         <div className="absolute top-full mt-1 w-full bg-slate-800/95 backdrop-blur-md rounded-lg border border-slate-700/50 shadow-xl max-h-64 overflow-y-auto z-30">
           {results.map(r => (
             <button
-              key={`${r.type}_${r.id}`}
+              key={r.id}
               onClick={() => {
-                onSelect(r.type, r.id);
+                onSelect(r.id);
                 setQuery('');
                 setIsOpen(false);
               }}

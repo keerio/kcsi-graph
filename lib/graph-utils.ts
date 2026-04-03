@@ -33,44 +33,59 @@ export function seedPosition(node: GraphNode): { x: number; y: number } {
   };
 }
 
-// Colors per BACKEND.md spec
+// Colors per entity type
 export const NODE_COLORS: Record<string, string> = {
-  project: '#22c55e',  // green-500
-  person: '#3b82f6',   // blue-500
-  event: '#f59e0b',    // amber-500
+  person: '#3b82f6',      // blue-500
+  institution: '#22c55e', // green-500
+  event: '#f59e0b',       // amber-500
+  venue: '#a855f7',       // purple-500
+  artwork: '#6b7280',     // gray-500
 };
 
 export const NODE_COLORS_DIM: Record<string, string> = {
-  project: '#22c55e33',
   person: '#3b82f633',
+  institution: '#22c55e33',
   event: '#f59e0b33',
+  venue: '#a855f733',
+  artwork: '#6b728033',
 };
 
 // Edge colors by relation type
 export const EDGE_COLORS: Record<string, string> = {
-  has_role: '#6366f1',        // indigo
-  participates_in: '#3b82f6', // blue
-  shows_work: '#f97316',      // orange
-  organizes: '#ef4444',       // red
-  authored_by: '#ec4899',     // pink
-  hosted_by: '#10b981',       // emerald
+  participated_in: '#3b82f6', // blue
+  artist_at: '#f97316',       // orange
+  exhibited_at: '#ec4899',    // pink
+  founder: '#ef4444',         // red
+  director: '#ef4444',        // red
+  curator: '#6366f1',         // indigo
+  organized: '#ef4444',       // red
+  member_of: '#10b981',       // emerald
+  collaborated: '#8b5cf6',    // violet
+  designer_at: '#f97316',     // orange
+  musician_at: '#f59e0b',     // amber
+  part_of: '#64748b',         // slate
 };
 
 export function nodeRadius(node: GraphNode, zoom: number): number {
-  // Size hierarchy: project > event > person
+  // Size hierarchy: institution > person > event > venue > artwork
   let base: number;
-  if (node.type === 'project') {
+  if (node.type === 'institution') {
     base = Math.max(10, Math.min(24, 10 + Math.pow(node.weight, 0.5) * 2));
   } else if (node.type === 'event') {
     base = Math.max(4, Math.min(10, 4 + Math.pow(node.weight, 0.5) * 1.2));
-  } else {
+  } else if (node.type === 'venue') {
+    base = Math.max(6, Math.min(14, 6 + Math.pow(node.weight, 0.5) * 1.5));
+  } else if (node.type === 'artwork') {
     base = Math.max(3, Math.min(6, 3 + Math.pow(node.weight, 0.5) * 0.5));
+  } else {
+    // person
+    base = Math.max(3, Math.min(8, 3 + Math.pow(node.weight, 0.5) * 0.7));
   }
   return base / Math.sqrt(zoom);
 }
 
 export function isHub(node: GraphNode): boolean {
-  return node.type === 'project' && node.weight >= 3;
+  return node.type === 'institution' && node.weight >= 3;
 }
 
 export function wrapText(text: string, maxChars: number): string[] {

@@ -1,115 +1,123 @@
-// Ported from config.py — Baserow field mappings and select option IDs
+// TKG schema — Baserow field mappings for graph.* tables
 
 // ── Tables ──────────────────────────────────────────────────────────────────
 
-export const TBL_ENTITIES = 'database_table_764';
-export const TBL_POSTS = 'database_table_765';
-export const TBL_EDGES = 'database_table_766';
-export const TBL_EVENTS = 'database_table_775';
-export const TBL_PROJECTS = 'database_table_776';
-export const TBL_PEOPLE = 'database_table_777';
-export const TBL_ROLES = 'database_table_778';
-export const TBL_ARTWORKS = 'database_table_779';
+export const TBL_ENTITIES = 'graph.entities';
+export const TBL_RELATIONS = 'graph.relations';
+export const TBL_TOPONYMS = 'graph.toponyms';
 
 // ── Field maps ──────────────────────────────────────────────────────────────
 
-export const F775 = {
-  event_name: 'field_7542', event_type: 'field_7543',
-  venue: 'field_7544', city: 'field_7545',
-  date_start: 'field_7546', date_end: 'field_7547', date_text: 'field_7548',
-  participants: 'field_7549', description: 'field_7550',
-  source_posts: 'field_7551', source_urls: 'field_7552',
-  mention_count: 'field_7553', project_id: 'field_7613',
+// database_table_785 → graph.entities
+export const F785 = {
+  uuid: 'field_7676',
+  name: 'field_7653',
+  name_ru: 'field_7654',
+  name_original: 'field_7655',
+  entity_type_id: 'field_7656',
+  city: 'field_7657',
+  country: 'field_7658',
+  description: 'field_7659',
+  instagram: 'field_7660',
+  kgart_score: 'field_7670',
+  ig_followers: 'field_7671',
+  mention_count: 'field_7672',
 } as const;
 
-export const F776 = {
-  project_name: 'field_7556', project_type: 'field_7565',
-  city: 'field_7566', address: 'field_7567',
-  phone: 'field_7568', email: 'field_7569',
-  website: 'field_7570', instagram: 'field_7571', telegram: 'field_7572',
-  description: 'field_7573', status: 'field_7574',
-  source_entity_id: 'field_7575',
-  name_ru: 'field_7609', name_original: 'field_7610',
+// database_table_786 → graph.relations
+export const F786 = {
+  uuid: 'field_7690',
+  from_uuid: 'field_7678',
+  to_uuid: 'field_7680',
+  relation_type_id: 'field_7682',
+  from_name: 'field_7679',
+  to_name: 'field_7681',
+  label: 'field_7677',
+  date_start: 'field_7683',
+  date_end: 'field_7684',
+  confidence_id: 'field_7686',
 } as const;
 
-export const F777 = {
-  person_name: 'field_7559', city: 'field_7576',
-  phone: 'field_7577', email: 'field_7578',
-  website: 'field_7579', instagram: 'field_7580', telegram: 'field_7581',
-  bio: 'field_7582', source_entity_id: 'field_7583',
-  name_ru: 'field_7611', name_original: 'field_7612',
+// database_table_790 → graph.toponyms
+export const F790 = {
+  uuid: 'field_7724',
+  name: 'field_7717',
+  toponym_type_id: 'field_7718',
+  country_code: 'field_7720',
+  lat: 'field_7722',
+  lon: 'field_7723',
 } as const;
 
-export const F778 = {
-  role_label: 'field_7562', project_id: 'field_7584', person_id: 'field_7585',
-  role: 'field_7586', role_text: 'field_7587', period: 'field_7588',
-} as const;
+// ── Select ID mappings ───────────────────────────────────────────────────────
 
-export const F766 = {
-  from_id: 'field_7468', from_name: 'field_7469',
-  to_id: 'field_7470', to_name: 'field_7471',
-  relation_type: 'field_7472', weight: 'field_7473',
-  source_post_id: 'field_7474', date: 'field_7475', notes: 'field_7476',
-} as const;
-
-// ── Select option IDs → labels ──────────────────────────────────────────────
-
-export const EVENT_TYPES: Record<number, string> = {
-  3238: 'exhibition', 3239: 'festival', 3240: 'opening',
-  3241: 'talk', 3242: 'workshop', 3243: 'performance',
-  3244: 'fair', 3245: 'residency', 3246: 'other',
+export const ENTITY_TYPES: Record<string, string> = {
+  '3296': 'person',
+  '3297': 'institution',
+  '3298': 'event',
+  '3299': 'artwork',
+  '3300': 'venue',
 };
 
-export const PROJECT_TYPES: Record<number, string> = {
-  3247: 'museum', 3248: 'gallery', 3249: 'theater',
-  3250: 'residency', 3251: 'festival', 3252: 'collective',
-  3253: 'foundation', 3254: 'school', 3255: 'platform', 3256: 'other',
+export const RELATION_TYPES: Record<string, string> = {
+  '3314': 'participated_in',
+  '3317': 'located_in',
+  '3312': 'artist_at',
+  '3313': 'exhibited_at',
+  '3309': 'founder',
+  '3310': 'director',
+  '3311': 'curator',
+  '3315': 'organized',
+  '3308': 'member_of',
+  '3321': 'collaborated',
+  '3327': 'designer_at',
+  '3325': 'musician_at',
+  '3318': 'part_of',
 };
 
-export const ROLES: Record<number, string> = {
-  3260: 'director', 3261: 'curator', 3262: 'artist',
-  3263: 'participant', 3264: 'founder', 3265: 'manager', 3266: 'other',
-  3272: 'teacher', 3273: 'actor', 3274: 'playwright',
-  3275: 'producer', 3276: 'screenwriter', 3277: 'photographer',
-  3278: 'musician', 3279: 'designer', 3280: 'architect',
-  3281: 'writer', 3282: 'journalist', 3283: 'activist',
-  3284: 'critic', 3285: 'collector', 3286: 'administrator',
-  3287: 'cameraman', 3288: 'sound_engineer', 3289: 'choreographer',
-  3290: 'lecturer',
+export const CONFIDENCE: Record<string, string> = {
+  '3329': 'auto',
+  '3330': 'verified',
+  '3331': 'disputed',
 };
 
-export const RELATION_TYPES: Record<number, string> = {
-  3202: 'co_mention', 3203: 'tagged',
-  3267: 'participates_in', 3268: 'shows_work',
-  3269: 'organizes', 3270: 'located_in', 3271: 'authored_by',
+export const TOPONYM_TYPES: Record<string, string> = {
+  '3362': 'city',
+  '3363': 'region',
+  '3364': 'country',
 };
 
-export const PROJECT_STATUSES: Record<number, string> = {
-  3257: 'active', 3258: 'archive', 3259: 'unknown',
+// ── Display labels (Russian) ─────────────────────────────────────────────────
+
+export const ENTITY_TYPE_LABELS: Record<string, string> = {
+  person: 'Человек',
+  institution: 'Институция',
+  event: 'Событие',
+  artwork: 'Работа',
+  venue: 'Площадка',
 };
 
-// ── Display labels (Russian) ────────────────────────────────────────────────
-
-export const EVENT_TYPE_LABELS: Record<string, string> = {
-  exhibition: 'Выставка', festival: 'Фестиваль', opening: 'Открытие',
-  talk: 'Лекция', workshop: 'Воркшоп', performance: 'Перформанс',
-  fair: 'Ярмарка', residency: 'Резиденция', other: 'Другое',
+export const RELATION_TYPE_LABELS: Record<string, string> = {
+  participated_in: 'Участвовал',
+  located_in: 'Находится в',
+  artist_at: 'Художник',
+  exhibited_at: 'Выставлялся',
+  founder: 'Основатель',
+  director: 'Директор',
+  curator: 'Куратор',
+  organized: 'Организовал',
+  member_of: 'Участник',
+  collaborated: 'Коллаборация',
+  designer_at: 'Дизайнер',
+  musician_at: 'Музыкант',
+  part_of: 'Часть',
 };
 
-export const PROJECT_TYPE_LABELS: Record<string, string> = {
-  museum: 'Музей', gallery: 'Галерея', theater: 'Театр',
-  residency: 'Резиденция', festival: 'Фестиваль', collective: 'Коллектив',
-  foundation: 'Фонд', school: 'Школа', platform: 'Платформа', other: 'Другое',
-};
+// ── Node colors ──────────────────────────────────────────────────────────────
 
-export const ROLE_LABELS: Record<string, string> = {
-  director: 'Директор', curator: 'Куратор', artist: 'Художник',
-  participant: 'Участник', founder: 'Основатель', manager: 'Менеджер',
-  other: 'Другое', teacher: 'Преподаватель', actor: 'Актёр',
-  playwright: 'Драматург', producer: 'Продюсер', screenwriter: 'Сценарист',
-  photographer: 'Фотограф', musician: 'Музыкант', designer: 'Дизайнер',
-  architect: 'Архитектор', writer: 'Писатель', journalist: 'Журналист',
-  activist: 'Активист', critic: 'Критик', collector: 'Коллекционер',
-  administrator: 'Администратор', cameraman: 'Оператор',
-  sound_engineer: 'Звукорежиссёр', choreographer: 'Хореограф', lecturer: 'Лектор',
+export const NODE_COLORS: Record<string, string> = {
+  person: '#3b82f6',      // blue-500
+  institution: '#22c55e', // green-500
+  event: '#f59e0b',       // amber-500
+  venue: '#a855f7',       // purple-500
+  artwork: '#6b7280',     // gray-500
 };
