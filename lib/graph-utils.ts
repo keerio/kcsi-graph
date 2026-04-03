@@ -70,7 +70,7 @@ export function nodeRadius(node: GraphNode, zoom: number): number {
   // Size hierarchy: institution > person > event > venue > artwork
   let base: number;
   if (node.type === 'institution') {
-    base = Math.max(10, Math.min(24, 10 + Math.pow(node.weight, 0.5) * 2));
+    base = Math.max(16, Math.min(36, 16 + Math.pow(node.weight, 0.5) * 3));
   } else if (node.type === 'event') {
     base = Math.max(4, Math.min(10, 4 + Math.pow(node.weight, 0.5) * 1.2));
   } else if (node.type === 'venue') {

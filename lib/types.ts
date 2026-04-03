@@ -18,6 +18,8 @@ export interface GraphNode {
   // Force-graph positioning
   x?: number;
   y?: number;
+  vx?: number;
+  vy?: number;
   fx?: number | undefined;
   fy?: number | undefined;
 }

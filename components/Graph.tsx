@@ -54,12 +54,43 @@ export default function Graph({
 
   // Configure simulation
   useEffect(() => {
-    if (fgRef.current) {
-      fgRef.current.d3Force('charge')?.strength(-20);
-      fgRef.current.d3Force('link')?.distance(80);
-      // Stop simulation after 4 seconds
-      setTimeout(() => fgRef.current?.cooldownTicks(0), 4000);
-    }
+    if (!fgRef.current) return;
+    fgRef.current.d3Force('charge')?.strength(-20);
+    fgRef.current.d3Force('link')?.distance(80);
+
+    // Custom collision force: institutions repel each other by 2× their combined radius
+    const institutionCollide = () => {
+      return (alpha: number) => {
+        const nodes: GraphNode[] = fgRef.current?.graphData()?.nodes || [];
+        const institutions = nodes.filter((n: GraphNode) => n.type === 'institution');
+        for (let i = 0; i < institutions.length; i++) {
+          for (let j = i + 1; j < institutions.length; j++) {
+            const a = institutions[i];
+            const b = institutions[j];
+            if (a.x == null || a.y == null || b.x == null || b.y == null) continue;
+            const dx = b.x - a.x;
+            const dy = b.y - a.y;
+            const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+            const rA = nodeRadius(a, 1);
+            const rB = nodeRadius(b, 1);
+            // Minimum distance = diameter of larger + small gap
+            const minDist = Math.max(rA, rB) * 2 + rA + rB;
+            if (dist < minDist) {
+              const force = (minDist - dist) / dist * alpha * 0.8;
+              const fx = dx * force;
+              const fy = dy * force;
+              if (a.fx == null) { a.x! -= fx; a.vx = (a.vx || 0) - fx; }
+              if (b.fx == null) { b.x! += fx; b.vx = (b.vx || 0) + fx; }
+              if (a.fy == null) { a.y! -= fy; a.vy = (a.vy || 0) - fy; }
+              if (b.fy == null) { b.y! += fy; b.vy = (b.vy || 0) + fy; }
+            }
+          }
+        }
+      };
+    };
+
+    fgRef.current.d3Force('institutionCollide', institutionCollide());
+    setTimeout(() => fgRef.current?.cooldownTicks(0), 4000);
   }, [data]);
 
   // Filter data based on visible types and date range
@@ -182,25 +213,19 @@ export default function Graph({
 
     // Shape by type
     if (node.type === 'institution') {
-      // Rounded rectangle
-      const w = r * 2;
-      const h = r * 1.4;
-      const cr = r * 0.3;
-      const x = node.x! - w / 2;
-      const y = node.y! - h / 2;
+      // Large circle with ring
       ctx.beginPath();
-      ctx.moveTo(x + cr, y);
-      ctx.lineTo(x + w - cr, y);
-      ctx.quadraticCurveTo(x + w, y, x + w, y + cr);
-      ctx.lineTo(x + w, y + h - cr);
-      ctx.quadraticCurveTo(x + w, y + h, x + w - cr, y + h);
-      ctx.lineTo(x + cr, y + h);
-      ctx.quadraticCurveTo(x, y + h, x, y + h - cr);
-      ctx.lineTo(x, y + cr);
-      ctx.quadraticCurveTo(x, y, x + cr, y);
-      ctx.closePath();
+      ctx.arc(node.x!, node.y!, r, 0, 2 * Math.PI);
       ctx.fillStyle = color;
       ctx.fill();
+      // Outer ring to make them visually distinct
+      ctx.strokeStyle = color;
+      ctx.globalAlpha = 0.3;
+      ctx.lineWidth = 3 / globalScale;
+      ctx.beginPath();
+      ctx.arc(node.x!, node.y!, r + 4 / globalScale, 0, 2 * Math.PI);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
     } else if (node.type === 'event') {
       // Diamond
       ctx.beginPath();
