@@ -203,6 +203,9 @@ export default function Graph({
 
   const isHighlighting = highlightNodes.size > 0;
 
+  // Per-frame label deconfliction: reset every ~16ms
+  const labelFrameRef = useRef<{ t: number; pts: Array<{ x: number; y: number }> }>({ t: 0, pts: [] });
+
   const nodeCanvasObject = useCallback((node: GraphNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
     const r = nodeRadius(node, globalScale);
     const isSelected = node.id === selectedNode;
@@ -263,23 +266,50 @@ export default function Graph({
     }
 
     // Labels
-    const hub = isHub(node);
-    const showLabel = hub || isSelected || isHighlighted;
+    const isInstitution = node.type === 'institution';
+    const showLabel = isInstitution || isSelected || isHighlighted;
     if (showLabel && !dimmed) {
-      const fontSize = Math.max(10, (hub ? 12 : 11) / globalScale);
-      ctx.font = `300 ${fontSize}px Inter, system-ui, sans-serif`;
+      // Per-frame deconfliction reset
+      const now = Date.now();
+      if (now - labelFrameRef.current.t > 14) {
+        labelFrameRef.current = { t: now, pts: [] };
+      }
+
+      const fontSize = isSelected
+        ? Math.max(9, 11 / globalScale)
+        : Math.max(6, (isInstitution ? 9 : 8) / globalScale);
+      const lineHeight = fontSize * 1.35;
+      const lines = wrapText(node.name, 28);
+      const labelH = lines.length * lineHeight;
+
+      // Collision check: skip non-selected labels that overlap previous ones
+      if (!isSelected) {
+        const minSep = (labelH + fontSize * 1.5) / globalScale;
+        const conflicts = labelFrameRef.current.pts.some(p => {
+          const dx = p.x - node.x!;
+          const dy = p.y - node.y!;
+          return Math.sqrt(dx * dx + dy * dy) < minSep;
+        });
+        if (conflicts) {
+          // Still register position to block others, but skip drawing for non-institution
+          if (!isInstitution) return;
+          // Institutions always draw, just register
+        }
+      }
+
+      ctx.font = `${isSelected ? '400' : '200'} ${fontSize}px Inter, system-ui, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
-      ctx.fillStyle = isSelected || isHighlighted ? '#f8fafc' : '#94a3b8';
-      const lines = wrapText(node.name, 30);
-      const lineHeight = fontSize * 1.2;
-      let ly = node.y! + r + 3 / globalScale;
+      ctx.fillStyle = isSelected ? '#ffffff' : isHighlighted ? '#e2e8f0' : '#64748b';
+      let ly = node.y! + r + 2 / globalScale;
       for (const line of lines) {
         ctx.fillText(line, node.x!, ly);
         ly += lineHeight;
       }
+
+      labelFrameRef.current.pts.push({ x: node.x!, y: node.y! });
     }
-  }, [selectedNode, highlightNodes, isHighlighting]);
+  }, [selectedNode, highlightNodes, isHighlighting, labelFrameRef]);
 
   const linkCanvasObject = useCallback((link: GraphEdge, ctx: CanvasRenderingContext2D, globalScale: number) => {
     const src = link.source as unknown as GraphNode;
@@ -327,6 +357,10 @@ export default function Graph({
         height={dimensions.height}
         graphData={filteredData}
         nodeId="id"
+        nodeLabel={(node) => {
+          const n = node as GraphNode;
+          return n.description ? `${n.name}\n${n.description}` : n.name;
+        }}
         nodeCanvasObject={nodeCanvasObject}
         nodePointerAreaPaint={(node: GraphNode, color, ctx, globalScale) => {
           const r = nodeRadius(node, globalScale) + 2;

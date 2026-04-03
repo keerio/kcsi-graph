@@ -49,6 +49,7 @@ export async function fetchGraphData(pool: Pool): Promise<GraphData> {
       field_7656::text AS entity_type_id,
       field_7657 AS city,
       field_7658 AS country,
+      field_7659 AS description,
       COALESCE(field_7670::numeric, 0)::int AS kgart_score,
       COALESCE(field_7671::numeric, 0)::int AS ig_followers,
       COALESCE(field_7672::numeric, 0)::int AS mention_count
@@ -128,6 +129,7 @@ export async function fetchGraphData(pool: Pool): Promise<GraphData> {
       mentionCount: row.mention_count || 0,
       geoGroup: geoMap.get(row.uuid) || null,
       weight: 0,
+      description: row.description || null,
     });
     weightMap.set(row.uuid, 0);
   }

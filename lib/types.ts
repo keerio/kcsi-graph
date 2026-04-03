@@ -15,6 +15,7 @@ export interface GraphNode {
   mentionCount: number;
   geoGroup: GeoGroup;  // from located_in → toponym.geo_relevance
   weight: number;      // connectivity weight for sizing/filtering
+  description: string | null;
   // Force-graph positioning
   x?: number;
   y?: number;
