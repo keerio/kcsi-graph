@@ -2,7 +2,7 @@
 
 import { useRef, useCallback, useEffect, useState, useMemo } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
-import type { GraphNode, GraphEdge, GraphData, EntityType } from '@/lib/types';
+import type { GraphNode, GraphEdge, GraphData, EntityType, GeoGroup } from '@/lib/types';
 import { NODE_COLORS, NODE_COLORS_DIM, EDGE_COLORS, nodeRadius, seedPosition, isHub, wrapText } from '@/lib/graph-utils';
 
 interface GraphProps {
@@ -13,11 +13,13 @@ interface GraphProps {
   highlightNodes: Set<string>;
   visibleTypes: Set<EntityType>;
   dateRange: [string, string] | null;
+  geoFilter: GeoGroup | 'all';
+  minScore: number;
 }
 
 export default function Graph({
   data, selectedNode, onNodeClick, onBackgroundClick,
-  highlightNodes, visibleTypes, dateRange,
+  highlightNodes, visibleTypes, dateRange, geoFilter, minScore,
 }: GraphProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const fgRef = useRef<any>(undefined);
@@ -118,7 +120,15 @@ export default function Graph({
     const filteredNodes = data.nodes.filter(n => {
       if (!visibleTypes.has(n.type)) return false;
       if (!keepNodes.has(n.id)) return false;
-      // Institutions always visible
+      // Geo filter
+      if (geoFilter !== 'all' && n.geoGroup !== geoFilter) {
+        if (n.id !== selectedNode && !highlightNodes.has(n.id)) return false;
+      }
+      // Score filter
+      if (minScore > 0 && n.kgartScore < minScore) {
+        if (n.id !== selectedNode && !highlightNodes.has(n.id)) return false;
+      }
+      // Institutions always visible (within geo/score)
       if (n.type === 'institution') return true;
       // Selected/highlighted always visible
       if (highlightNodes.has(n.id) || n.id === selectedNode) return true;
@@ -135,7 +145,7 @@ export default function Graph({
     });
 
     return { nodes: filteredNodes, links: visibleEdges };
-  }, [data, visibleTypes, dateRange, highlightNodes, selectedNode]);
+  }, [data, visibleTypes, dateRange, highlightNodes, selectedNode, geoFilter, minScore]);
 
   const handleNodeClick = useCallback((node: GraphNode) => {
     node.fx = node.x;

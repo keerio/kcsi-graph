@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import dynamic from 'next/dynamic';
-import type { GraphData, EntityType } from '@/lib/types';
+import type { GraphData, EntityType, GeoGroup } from '@/lib/types';
 import GraphControls from '@/components/GraphControls';
 import DetailPanel from '@/components/DetailPanel';
 import TimelineSlider from '@/components/TimelineSlider';
@@ -25,6 +25,8 @@ export default function Home() {
     new Set(['person', 'institution', 'event', 'venue'] as EntityType[])
   );
   const [timelineRange, setTimelineRange] = useState<[number, number]>([2020, 2026]);
+  const [geoFilter, setGeoFilter] = useState<GeoGroup | 'all'>('all');
+  const [minScore, setMinScore] = useState(0);
 
   // Fetch graph data
   useEffect(() => {
@@ -128,6 +130,8 @@ export default function Home() {
         highlightNodes={highlightNodes}
         visibleTypes={visibleTypes}
         dateRange={dateRange}
+        geoFilter={geoFilter}
+        minScore={minScore}
       />
 
       {/* Controls overlay */}
@@ -136,6 +140,10 @@ export default function Home() {
         onToggleType={handleToggleType}
         nodeCount={graphData.nodes.length}
         edgeCount={graphData.edges.length}
+        geoFilter={geoFilter}
+        onGeoFilter={setGeoFilter}
+        minScore={minScore}
+        onMinScore={setMinScore}
       />
 
       {/* Top bar: search + timeline */}

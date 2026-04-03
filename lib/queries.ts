@@ -1,5 +1,5 @@
 import { Pool } from 'pg';
-import type { GraphNode, GraphEdge, GraphData, Entity, RelationEntry, SearchResult, EntityType } from './types';
+import type { GraphNode, GraphEdge, GraphData, Entity, RelationEntry, SearchResult, EntityType, GeoGroup } from './types';
 
 // ── Select ID → label maps ─────────────────────────────────────────────────
 
@@ -71,10 +71,32 @@ export async function fetchGraphData(pool: Pool): Promise<GraphData> {
       AND field_7682::text != '3317'
   `;
 
-  const [nodesRes, relationsRes] = await Promise.all([
+  // Geo group per entity via located_in → toponym.geo_relevance
+  // Priority: KG (3366) > CA (3367) > world (3369)
+  const geoQuery = `
+    SELECT DISTINCT ON (entity_uuid) entity_uuid, geo_rel
+    FROM (
+      SELECT r.field_7678::text AS entity_uuid, t.field_7721::text AS geo_rel
+      FROM graph.relations r
+      JOIN graph.toponyms t ON t.field_7724::text = r.field_7680::text
+      WHERE r.field_7682::text = '3317' AND NOT r.trashed AND NOT t.trashed
+    ) sub
+    ORDER BY entity_uuid,
+      CASE geo_rel WHEN '3366' THEN 0 WHEN '3367' THEN 1 WHEN '3369' THEN 2 ELSE 3 END
+  `;
+
+  const GEO_MAP: Record<string, GeoGroup> = { '3366': 'kg', '3367': 'ca', '3369': 'world' };
+
+  const [nodesRes, relationsRes, geoRes] = await Promise.all([
     pool.query(nodesQuery),
     pool.query(relationsQuery),
+    pool.query(geoQuery),
   ]);
+
+  const geoMap = new Map<string, GeoGroup>();
+  for (const row of geoRes.rows) {
+    geoMap.set(row.entity_uuid, GEO_MAP[row.geo_rel] || null);
+  }
 
   const nodeMap = new Map<string, GraphNode>();
   const weightMap = new Map<string, number>();
@@ -90,6 +112,7 @@ export async function fetchGraphData(pool: Pool): Promise<GraphData> {
       kgartScore: row.kgart_score || 0,
       igFollowers: row.ig_followers || 0,
       mentionCount: row.mention_count || 0,
+      geoGroup: geoMap.get(row.uuid) || null,
       weight: 0,
     });
     weightMap.set(row.uuid, 0);

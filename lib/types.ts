@@ -2,6 +2,8 @@
 
 export type EntityType = 'person' | 'institution' | 'event' | 'artwork' | 'venue';
 
+export type GeoGroup = 'kg' | 'ca' | 'world' | null;
+
 export interface GraphNode {
   id: string;          // uuid (stable string ID)
   type: EntityType;
@@ -11,6 +13,7 @@ export interface GraphNode {
   kgartScore: number;
   igFollowers: number;
   mentionCount: number;
+  geoGroup: GeoGroup;  // from located_in → toponym.geo_relevance
   weight: number;      // connectivity weight for sizing/filtering
   // Force-graph positioning
   x?: number;
