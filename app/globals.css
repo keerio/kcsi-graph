@@ -19,6 +19,14 @@ body {
   overflow: hidden;
 }
 
+/* Force-graph tooltip */
+#graph-tooltip {
+  max-width: 280px;
+  line-height: 1.5;
+  font-size: 12px;
+  padding: 6px 10px !important;
+}
+
 /* Hide scrollbar in detail panel but keep scrollability */
 .overflow-y-auto::-webkit-scrollbar {
   width: 4px;

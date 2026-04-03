@@ -92,6 +92,15 @@ export default function Graph({
     setTimeout(() => fgRef.current?.cooldownTicks(0), 4000);
   }, [data]);
 
+  // Reheat simulation when a node is selected so highlighted neighbors spread apart for label visibility
+  useEffect(() => {
+    if (!fgRef.current) return;
+    if (!selectedNode) return;
+    fgRef.current.d3ReheatSimulation();
+    const t = setTimeout(() => fgRef.current?.cooldownTicks(0), 1500);
+    return () => clearTimeout(t);
+  }, [selectedNode]);
+
   // Filter data based on visible types and date range
   const filteredData = useMemo(() => {
     const visibleNodeIds = new Set<string>();
@@ -279,8 +288,7 @@ export default function Graph({
         ? Math.max(9, 11 / globalScale)
         : Math.max(6, (isInstitution ? 9 : 8) / globalScale);
       const lineHeight = fontSize * 1.35;
-      // Aggressive wrap: ~14 chars per line (2× shorter than before)
-      const lines = wrapText(node.name, 14);
+      const lines = wrapText(node.name, 28);
 
       // Set font first so measureText works
       ctx.font = `${isSelected ? '400' : '200'} ${fontSize}px Inter, system-ui, sans-serif`;
@@ -368,7 +376,13 @@ export default function Graph({
         nodeId="id"
         nodeLabel={(node) => {
           const n = node as GraphNode;
-          return n.description ? `${n.name}\n${n.description}` : n.name;
+          if (!n.description) return n.name;
+          const words = n.description.split(/\s+/);
+          const chunks: string[] = [];
+          for (let i = 0; i < words.length; i += 10) {
+            chunks.push(words.slice(i, i + 10).join(' '));
+          }
+          return `<b>${n.name}</b><br/>${chunks.join('<br/>')}`;
         }}
         nodeCanvasObject={nodeCanvasObject}
         nodePointerAreaPaint={(node: GraphNode, color, ctx, globalScale) => {
