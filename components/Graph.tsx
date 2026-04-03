@@ -58,38 +58,37 @@ export default function Graph({
     fgRef.current.d3Force('charge')?.strength(-20);
     fgRef.current.d3Force('link')?.distance(80);
 
-    // Custom collision force: institutions repel each other by 2× their combined radius
-    const institutionCollide = () => {
-      return (alpha: number) => {
-        const nodes: GraphNode[] = fgRef.current?.graphData()?.nodes || [];
-        const institutions = nodes.filter((n: GraphNode) => n.type === 'institution');
-        for (let i = 0; i < institutions.length; i++) {
-          for (let j = i + 1; j < institutions.length; j++) {
-            const a = institutions[i];
-            const b = institutions[j];
-            if (a.x == null || a.y == null || b.x == null || b.y == null) continue;
-            const dx = b.x - a.x;
-            const dy = b.y - a.y;
-            const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-            const rA = nodeRadius(a, 1);
-            const rB = nodeRadius(b, 1);
-            // Minimum distance = diameter of larger + small gap
-            const minDist = Math.max(rA, rB) * 2 + rA + rB;
-            if (dist < minDist) {
-              const force = (minDist - dist) / dist * alpha * 0.8;
-              const fx = dx * force;
-              const fy = dy * force;
-              if (a.fx == null) { a.x! -= fx; a.vx = (a.vx || 0) - fx; }
-              if (b.fx == null) { b.x! += fx; b.vx = (b.vx || 0) + fx; }
-              if (a.fy == null) { a.y! -= fy; a.vy = (a.vy || 0) - fy; }
-              if (b.fy == null) { b.y! += fy; b.vy = (b.vy || 0) + fy; }
-            }
+    // Proper d3 force with initialize — institutions repel each other
+    let simNodes: GraphNode[] = [];
+    const institutionCollide = (alpha: number) => {
+      const institutions = simNodes.filter(n => n.type === 'institution');
+      for (let i = 0; i < institutions.length; i++) {
+        for (let j = i + 1; j < institutions.length; j++) {
+          const a = institutions[i];
+          const b = institutions[j];
+          if (a.x == null || a.y == null || b.x == null || b.y == null) continue;
+          const dx = (b.x - a.x) || 0.01;
+          const dy = (b.y - a.y) || 0.01;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          const rA = nodeRadius(a, 1);
+          const rB = nodeRadius(b, 1);
+          const minDist = Math.max(rA, rB) * 2 + rA + rB;
+          if (dist < minDist && dist > 0) {
+            const strength = (minDist - dist) / dist * alpha * 0.6;
+            const fx = dx * strength;
+            const fy = dy * strength;
+            if (a.fx == null) { a.vx = (a.vx || 0) - fx; }
+            if (b.fx == null) { b.vx = (b.vx || 0) + fx; }
+            if (a.fy == null) { a.vy = (a.vy || 0) - fy; }
+            if (b.fy == null) { b.vy = (b.vy || 0) + fy; }
           }
         }
-      };
+      }
     };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (institutionCollide as any).initialize = (nodes: GraphNode[]) => { simNodes = nodes; };
 
-    fgRef.current.d3Force('institutionCollide', institutionCollide());
+    fgRef.current.d3Force('institutionCollide', institutionCollide);
     setTimeout(() => fgRef.current?.cooldownTicks(0), 4000);
   }, [data]);
 
@@ -213,19 +212,21 @@ export default function Graph({
 
     // Shape by type
     if (node.type === 'institution') {
-      // Large circle with ring
+      // Large circle
       ctx.beginPath();
       ctx.arc(node.x!, node.y!, r, 0, 2 * Math.PI);
       ctx.fillStyle = color;
       ctx.fill();
-      // Outer ring to make them visually distinct
-      ctx.strokeStyle = color;
+      // Outer ring — cap offset to avoid huge arc at low zoom
+      ctx.save();
       ctx.globalAlpha = 0.3;
+      ctx.strokeStyle = color;
       ctx.lineWidth = 3 / globalScale;
+      const ringR = r + Math.min(6, 4 / globalScale);
       ctx.beginPath();
-      ctx.arc(node.x!, node.y!, r + 4 / globalScale, 0, 2 * Math.PI);
+      ctx.arc(node.x!, node.y!, ringR, 0, 2 * Math.PI);
       ctx.stroke();
-      ctx.globalAlpha = 1;
+      ctx.restore();
     } else if (node.type === 'event') {
       // Diamond
       ctx.beginPath();
