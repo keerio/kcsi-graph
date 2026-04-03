@@ -33,7 +33,7 @@ export default function GraphControls({
   geoFilter, onGeoFilter, minScore, onMinScore,
 }: GraphControlsProps) {
   return (
-    <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
+    <div className="absolute top-4 left-4 z-10 flex flex-col gap-2 max-h-[calc(100vh-2rem)] overflow-y-auto">
       {/* Stats */}
       <div className="bg-slate-800/90 backdrop-blur-sm rounded-lg px-3 py-2 text-xs text-slate-400">
         {nodeCount} nodes / {edgeCount} edges
