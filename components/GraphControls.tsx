@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import type { EntityType, GeoGroup } from '@/lib/types';
 import { NODE_COLORS } from '@/lib/graph-utils';
 
@@ -12,6 +13,7 @@ interface GraphControlsProps {
   onGeoFilter: (g: GeoGroup | 'all') => void;
   minScore: number;
   onMinScore: (v: number) => void;
+  onSyncDone?: () => void;
 }
 
 const TYPE_INFO: { type: EntityType; labelRu: string }[] = [
@@ -31,8 +33,26 @@ const GEO_BUTTONS: { value: GeoGroup | 'all'; label: string }[] = [
 
 export default function GraphControls({
   visibleTypes, onToggleType, nodeCount, edgeCount,
-  geoFilter, onGeoFilter, minScore, onMinScore,
+  geoFilter, onGeoFilter, minScore, onMinScore, onSyncDone,
 }: GraphControlsProps) {
+  const [syncing, setSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'ok' | 'error'>('idle');
+
+  const handleSync = async () => {
+    setSyncing(true);
+    setSyncStatus('idle');
+    try {
+      const res = await fetch('/api/sync', { method: 'POST' });
+      setSyncStatus(res.ok ? 'ok' : 'error');
+      if (res.ok) onSyncDone?.();
+    } catch {
+      setSyncStatus('error');
+    } finally {
+      setSyncing(false);
+      setTimeout(() => setSyncStatus('idle'), 4000);
+    }
+  };
+
   return (
     <div className="absolute top-4 left-4 z-10 flex flex-col gap-2 max-h-[calc(100vh-2rem)] overflow-y-auto">
       {/* Stats */}
@@ -94,6 +114,20 @@ export default function GraphControls({
           className="w-full accent-blue-500 h-1"
         />
       </div>
+
+      {/* Sync */}
+      <button
+        onClick={handleSync}
+        disabled={syncing}
+        className={`bg-slate-800/90 backdrop-blur-sm rounded-lg px-3 py-2 text-xs font-medium transition-colors w-full text-left ${
+          syncing ? 'text-slate-500 cursor-wait' :
+          syncStatus === 'ok' ? 'text-green-400' :
+          syncStatus === 'error' ? 'text-red-400' :
+          'text-slate-400 hover:text-slate-200'
+        }`}
+      >
+        {syncing ? '⟳ Синхронизация…' : syncStatus === 'ok' ? '✓ Синхронизировано' : syncStatus === 'error' ? '✗ Ошибка' : '↻ Синк данных'}
+      </button>
 
       {/* Legend */}
       <div className="bg-slate-800/90 backdrop-blur-sm rounded-lg px-3 py-2 text-[10px] text-slate-500">

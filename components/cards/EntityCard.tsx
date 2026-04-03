@@ -101,7 +101,7 @@ export default function EntityCard({ entity, onNavigate }: EntityCardProps) {
 
       {/* Description */}
       {entity.description && (
-        <p className="text-sm text-slate-400 leading-relaxed line-clamp-4">{entity.description}</p>
+        <p className="text-sm text-slate-400 leading-relaxed line-clamp-8">{entity.description}</p>
       )}
 
       {/* Relations grouped by type */}

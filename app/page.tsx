@@ -28,6 +28,8 @@ export default function Home() {
   const [geoFilter, setGeoFilter] = useState<GeoGroup | 'all'>('all');
   const [minScore, setMinScore] = useState(0);
 
+  const [graphKey, setGraphKey] = useState(0);
+
   // Fetch graph data
   useEffect(() => {
     setLoading(true);
@@ -42,7 +44,9 @@ export default function Home() {
       })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
-  }, []);
+  }, [graphKey]);
+
+  const handleSyncDone = useCallback(() => setGraphKey(k => k + 1), []);
 
   // Compute highlighted nodes (selected + its neighbors)
   const highlightNodes = useMemo(() => {
@@ -144,6 +148,7 @@ export default function Home() {
         onGeoFilter={setGeoFilter}
         minScore={minScore}
         onMinScore={setMinScore}
+        onSyncDone={handleSyncDone}
       />
 
       {/* Top bar: search + timeline */}
