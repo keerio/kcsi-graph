@@ -71,9 +71,15 @@ export async function fetchGraphData(pool: Pool): Promise<GraphData> {
       AND field_7682::text != '3317'
   `;
 
-  // Geo group per entity via located_in → toponym.geo_relevance
-  // Priority: KG (3366) > CA (3367) > world (3369)
-  const geoQuery = `
+  // Geo group: primary = field_7669 on entity, fallback = located_in → toponym.geo_relevance
+  const geoDirectQuery = `
+    SELECT field_7676::text AS uuid, field_7669::text AS geo_id
+    FROM graph.entities
+    WHERE NOT trashed AND field_7676 IS NOT NULL AND field_7669 IS NOT NULL
+  `;
+
+  // Fallback via toponym join; priority KG > CA > USSR > world
+  const geoTopoQuery = `
     SELECT DISTINCT ON (entity_uuid) entity_uuid, geo_rel
     FROM (
       SELECT r.field_7678::text AS entity_uuid, t.field_7721::text AS geo_rel
@@ -82,20 +88,28 @@ export async function fetchGraphData(pool: Pool): Promise<GraphData> {
       WHERE r.field_7682::text = '3317' AND NOT r.trashed AND NOT t.trashed
     ) sub
     ORDER BY entity_uuid,
-      CASE geo_rel WHEN '3366' THEN 0 WHEN '3367' THEN 1 WHEN '3369' THEN 2 ELSE 3 END
+      CASE geo_rel WHEN '3366' THEN 0 WHEN '3367' THEN 1 WHEN '3368' THEN 2 WHEN '3369' THEN 3 ELSE 4 END
   `;
 
-  const GEO_MAP: Record<string, GeoGroup> = { '3366': 'kg', '3367': 'ca', '3369': 'world' };
+  const GEO_DIRECT: Record<string, GeoGroup> = { '3304': 'kg', '3305': 'ca', '3306': 'ussr', '3307': 'world' };
+  const GEO_TOPO: Record<string, GeoGroup> = { '3366': 'kg', '3367': 'ca', '3368': 'ussr', '3369': 'world' };
 
-  const [nodesRes, relationsRes, geoRes] = await Promise.all([
+  const [nodesRes, relationsRes, geoDirectRes, geoTopoRes] = await Promise.all([
     pool.query(nodesQuery),
     pool.query(relationsQuery),
-    pool.query(geoQuery),
+    pool.query(geoDirectQuery),
+    pool.query(geoTopoQuery),
   ]);
 
+  // Build geo map: toponym first, then override with direct entity field (higher priority)
   const geoMap = new Map<string, GeoGroup>();
-  for (const row of geoRes.rows) {
-    geoMap.set(row.entity_uuid, GEO_MAP[row.geo_rel] || null);
+  for (const row of geoTopoRes.rows) {
+    const g = GEO_TOPO[row.geo_rel];
+    if (g) geoMap.set(row.entity_uuid, g);
+  }
+  for (const row of geoDirectRes.rows) {
+    const g = GEO_DIRECT[row.geo_id];
+    if (g) geoMap.set(row.uuid, g);
   }
 
   const nodeMap = new Map<string, GraphNode>();

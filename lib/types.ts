@@ -2,7 +2,7 @@
 
 export type EntityType = 'person' | 'institution' | 'event' | 'artwork' | 'venue';
 
-export type GeoGroup = 'kg' | 'ca' | 'world' | null;
+export type GeoGroup = 'kg' | 'ca' | 'ussr' | 'world' | null;
 
 export interface GraphNode {
   id: string;          // uuid (stable string ID)

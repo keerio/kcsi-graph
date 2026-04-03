@@ -25,6 +25,7 @@ const GEO_BUTTONS: { value: GeoGroup | 'all'; label: string }[] = [
   { value: 'all', label: 'Все' },
   { value: 'kg', label: 'КГ' },
   { value: 'ca', label: 'ЦА' },
+  { value: 'ussr', label: 'СССР' },
   { value: 'world', label: 'Мир' },
 ];
 
