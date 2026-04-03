@@ -3,7 +3,7 @@
 import { useRef, useCallback, useEffect, useState, useMemo } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
 import type { GraphNode, GraphEdge, GraphData, EntityType, GeoGroup } from '@/lib/types';
-import { NODE_COLORS, NODE_COLORS_DIM, EDGE_COLORS, nodeRadius, seedPosition, isHub, wrapText } from '@/lib/graph-utils';
+import { NODE_COLORS, NODE_COLORS_DIM, EDGE_COLORS, GEO_OUTLINE, nodeRadius, seedPosition, isHub, wrapText } from '@/lib/graph-utils';
 
 interface GraphProps {
   data: GraphData;
@@ -267,10 +267,25 @@ export default function Graph({
       ctx.fill();
     }
 
+    // Geo outline ring
+    if (!dimmed) {
+      const geoColor = GEO_OUTLINE[node.geoGroup ?? 'world'] ?? GEO_OUTLINE.world;
+      ctx.save();
+      ctx.strokeStyle = geoColor;
+      ctx.lineWidth = (node.type === 'institution' ? 2 : 1.5) / globalScale;
+      ctx.globalAlpha = 0.75;
+      ctx.beginPath();
+      ctx.arc(node.x!, node.y!, r, 0, 2 * Math.PI);
+      ctx.stroke();
+      ctx.restore();
+    }
+
     // Selection ring
     if (isSelected) {
       ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 1.5 / globalScale;
+      ctx.lineWidth = 2 / globalScale;
+      ctx.beginPath();
+      ctx.arc(node.x!, node.y!, r + 1.5 / globalScale, 0, 2 * Math.PI);
       ctx.stroke();
     }
 

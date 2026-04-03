@@ -50,6 +50,14 @@ export const NODE_COLORS_DIM: Record<string, string> = {
   artwork: '#6b728033',
 };
 
+// Geo group outline colors: kg=red, ca=light-blue, ussr=yellow, world/null=green
+export const GEO_OUTLINE: Record<string, string> = {
+  kg: '#ef4444',    // red
+  ca: '#38bdf8',    // sky-blue
+  ussr: '#facc15',  // yellow
+  world: '#4ade80', // green
+};
+
 // Edge colors by relation type
 export const EDGE_COLORS: Record<string, string> = {
   participated_in: '#3b82f6', // blue

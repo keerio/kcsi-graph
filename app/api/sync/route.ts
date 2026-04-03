@@ -1,15 +1,16 @@
-import { exec } from 'child_process';
 import { NextResponse } from 'next/server';
 
 export async function POST() {
-  return new Promise<NextResponse>((resolve) => {
-    exec('bash /app/sync_graph.sh', { timeout: 120_000 }, (error, stdout, stderr) => {
-      const output = (stdout + stderr).trim();
-      if (error) {
-        resolve(NextResponse.json({ ok: false, error: error.message, output }, { status: 500 }));
-      } else {
-        resolve(NextResponse.json({ ok: true, output }));
-      }
+  try {
+    // Delegate to sync-runner sidecar (has docker access + GNU tools)
+    const res = await fetch('http://127.0.0.1:3201', {
+      method: 'POST',
+      signal: AbortSignal.timeout(180_000),
     });
-  });
+    const body = await res.json();
+    return NextResponse.json(body, { status: res.status });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return NextResponse.json({ ok: false, error: msg }, { status: 500 });
+  }
 }

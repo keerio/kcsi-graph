@@ -1,4 +1,16 @@
 services:
+  sync-runner:
+    image: python:3.12-slim
+    container_name: kcsi-sync-runner
+    network_mode: host
+    command: >
+      bash -c "apt-get update -qq && apt-get install -y -qq docker.io > /dev/null 2>&1 && python3 /app/sync_runner.py"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /opt/arcane/projects/kcsi/sync_graph.sh:/sync_graph.sh:ro
+      - ./sync_runner.py:/app/sync_runner.py:ro
+    restart: unless-stopped
+
   kcsi-graph:
     build: .
     container_name: kcsi-graph
@@ -10,9 +22,6 @@ services:
       - DB_USER=${DB_USER:-postgres}
       - DB_PASS=${DB_PASS:-TCppNjNQ9TOXwUEpZWsbZxnt}
       - PORT=3200
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - /opt/arcane/projects/kcsi/sync_graph.sh:/app/sync_graph.sh:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3200"]
